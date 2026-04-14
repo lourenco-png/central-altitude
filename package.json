@@ -1,0 +1,22 @@
+{
+  "name": "central-altitude",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm --workspace=api run start:dev",
+    "dev:web": "npm --workspace=web run dev",
+    "build": "npm --workspace=api run build && npm --workspace=web run build",
+    "db:generate": "npm --workspace=api run db:generate",
+    "db:migrate": "npm --workspace=api run db:migrate",
+    "db:seed": "npm --workspace=api run db:seed",
+    "db:studio": "npm --workspace=api run db:studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTH & USERS
+// ============================================================
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  password      String
+  nome          String
+  role          Role          @default(VIEWER)
+  avatar        String?
+  ativo         Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  notificacoes  Notificacao[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+// ============================================================
+// TOPOGRAFIA
+// ============================================================
+
+model Obra {
+  id           String        @id @default(cuid())
+  nome         String
+  clienteId    String
+  cliente      Cliente       @relation(fields: [clienteId], references: [id])
+  status       ObraStatus    @default(ATIVA)
+  endereco     String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  solicitacoes Solicitacao[]
+  rdos         RDO[]
+
+  @@map("obras")
+}
+
+enum ObraStatus {
+  ATIVA
+  PAUSADA
+  CONCLUIDA
+}
+
+model Engenheiro {
+  id           String        @id @default(cuid())
+  nome         String
+  crea         String
+  telefone     String?
+  email        String?
+  ativo        Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  solicitacoes Solicitacao[]
+
+  @@map("engenheiros")
+}
+
+model Solicitacao {
+  id            String            @id @default(cuid())
+  obraId        String
+  obra          Obra              @relation(fields: [obraId], references: [id])
+  engenheiroId  String
+  engenheiro    Engenheiro        @relation(fields: [engenheiroId], references: [id])
+  data          DateTime
+  status        SolicitacaoStatus @default(AGENDADO)
+  observacoes   String?
+  arquivos      String[]          @default([])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@map("solicitacoes")
+}
+
+enum SolicitacaoStatus {
+  AGENDADO
+  CONCLUIDO
+  CANCELADO
+}
+
+model RDO {
+  id          String       @id @default(cuid())
+  obraId      String
+  obra        Obra         @relation(fields: [obraId], references: [id])
+  data        DateTime
+  clima       String?
+  atividades  String?
+  observacoes String?
+  fotos       String[]     @default([])
+  equipe      Json?
+  assinaturas Assinatura[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("rdos")
+}
+
+model Assinatura {
+  id         String    @id @default(cuid())
+  rdoId      String
+  rdo        RDO       @relation(fields: [rdoId], references: [id])
+  nome       String
+  email      String
+  assinado   Boolean   @default(false)
+  token      String    @unique @default(cuid())
+  assinadoEm DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("assinaturas")
+}
+
+// ============================================================
+// RH / DP
+// ============================================================
+
+model Funcionario {
+  id          String            @id @default(cuid())
+  nome        String
+  cpf         String            @unique
+  cargo       String
+  setor       String?
+  telefone    String?
+  email       String?
+  admissao    DateTime
+  status      FuncionarioStatus @default(ATIVO)
+  foto        String?
+  documentos  DocumentoFunc[]
+  epis        EPI[]
+  ferias      Ferias[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("funcionarios")
+}
+
+enum FuncionarioStatus {
+  ATIVO
+  AFASTADO
+  DEMITIDO
+}
+
+model DocumentoFunc {
+  id            String      @id @default(cuid())
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+  nome          String
+  arquivo       String?
+  emissao       DateTime?
+  validade      DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@map("documentos_funcionarios")
+}
+
+model EPI {
+  id            String      @id @default(cuid())
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+  descricao     String
+  ca            String?
+  validade      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("epis")
+}
+
+model Ferias {
+  id            String       @id @default(cuid())
+  funcionarioId String
+  funcionario   Funcionario  @relation(fields: [funcionarioId], references: [id])
+  inicio        DateTime
+  fim           DateTime
+  dias          Int
+  status        FeriasStatus @default(PENDENTE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("ferias")
+}
+
+enum FeriasStatus {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
+model Empresa {
+  id         String             @id @default(cuid())
+  nome       String
+  cnpj       String             @unique
+  endereco   String?
+  telefone   String?
+  email      String?
+  logo       String?
+  socios     Socio[]
+  documentos DocumentoEmpresa[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@map("empresas")
+}
+
+model Socio {
+  id        String   @id @default(cuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  nome      String
+  cpf       String?
+  cargo     String?
+  createdAt DateTime @default(now())
+
+  @@map("socios")
+}
+
+model DocumentoEmpresa {
+  id        String    @id @default(cuid())
+  empresaId String
+  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  nome      String
+  arquivo   String?
+  validade  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("documentos_empresa")
+}
+
+// ============================================================
+// COMERCIAL
+// ============================================================
+
+model Cliente {
+  id           String      @id @default(cuid())
+  nome         String
+  cnpj         String?     @unique
+  email        String?
+  telefone     String?
+  cidade       String?
+  obras        Obra[]
+  orcamentos   Orcamento[]
+  contratos    Contrato[]
+  oportunidades Oportunidade[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("clientes")
+}
+
+model Orcamento {
+  id               String          @id @default(cuid())
+  numero           Int             @default(autoincrement())
+  clienteId        String
+  cliente          Cliente         @relation(fields: [clienteId], references: [id])
+  tipo             TipoOrcamento   @default(GENERICO)
+  itens            ItemOrcamento[]
+  desconto         Float           @default(0)
+  total            Float           @default(0)
+  condicoes        String?
+  status           OrcamentoStatus @default(RASCUNHO)
+  dadosEspecificos Json?
+  proposta         Proposta?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("orcamentos")
+}
+
+enum TipoOrcamento {
+  GENERICO
+  TOPOGRAFIA
+  INFRA_PREDIAL
+}
+
+enum OrcamentoStatus {
+  RASCUNHO
+  ENVIADO
+  APROVADO
+  REJEITADO
+}
+
+model ItemOrcamento {
+  id          String    @id @default(cuid())
+  orcamentoId String
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  descricao   String
+  quantidade  Float
+  unitario    Float
+  total       Float
+  ordem       Int       @default(0)
+
+  @@map("itens_orcamento")
+}
+
+model Proposta {
+  id          String         @id @default(cuid())
+  orcamentoId String         @unique
+  orcamento   Orcamento      @relation(fields: [orcamentoId], references: [id])
+  validade    Int            @default(30)
+  observacoes String?
+  status      PropostaStatus @default(ENVIADA)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("propostas")
+}
+
+enum PropostaStatus {
+  ENVIADA
+  APROVADA
+  REJEITADA
+}
+
+model Contrato {
+  id        String         @id @default(cuid())
+  numero    Int            @default(autoincrement())
+  clienteId String
+  cliente   Cliente        @relation(fields: [clienteId], references: [id])
+  objeto    String
+  valor     Float
+  inicio    DateTime
+  fim       DateTime?
+  status    ContratoStatus @default(AGUARDANDO_ASSINATURA)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("contratos")
+}
+
+enum ContratoStatus {
+  AGUARDANDO_ASSINATURA
+  ATIVO
+  ENCERRADO
+}
+
+model Oportunidade {
+  id          String          @id @default(cuid())
+  titulo      String
+  clienteId   String?
+  cliente     Cliente?        @relation(fields: [clienteId], references: [id])
+  valor       Float?
+  responsavel String?
+  estagio     PipelineEstagio @default(LEAD)
+  ordem       Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("oportunidades")
+}
+
+enum PipelineEstagio {
+  LEAD
+  PROPOSTA
+  FECHADO
+}
+
+// ============================================================
+// NOTIFICAÇÕES
+// ============================================================
+
+model Notificacao {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  titulo    String
+  mensagem  String
+  tipo      String   @default("info")
+  lida      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@map("notificacoes")
+}
