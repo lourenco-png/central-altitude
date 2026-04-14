@@ -2,13 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY api/package*.json ./
 RUN npm install --include=dev
 
-COPY prisma ./prisma/
+COPY api/prisma ./prisma/
 RUN npx prisma generate
 
-COPY . .
+COPY api/ .
 RUN npm run build
 
 EXPOSE 3001
