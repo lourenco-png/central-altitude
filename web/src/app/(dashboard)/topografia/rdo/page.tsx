@@ -63,159 +63,212 @@ const STATUS: Record<string, { bg: string; text: string; label: string; icon: st
 
 // ── PDF export (client-side jsPDF) ───────────────────────────
 
-function exportarPDF(rdo: any, obraNome: string) {
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-  script.onload = () => {
-    const { jsPDF } = (window as any).jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, margin = 14;
-    let y = 0;
-
-    const fmtD = (d: string) => d ? d.split('-').reverse().join('/') : '—';
-    const cor = {
-      verde: [29, 184, 100] as [number,number,number],
-      preto: [10, 10, 10] as [number,number,number],
-      cinza: [100, 116, 139] as [number,number,number],
-      cinzaClaro: [241, 245, 249] as [number,number,number],
-      branco: [255, 255, 255] as [number,number,number],
-    };
-
-    const rect = (x: number, ry: number, w: number, h: number, rgb: [number,number,number]) => {
-      doc.setFillColor(...rgb); doc.rect(x, ry, w, h, 'F');
-    };
-    const text = (t: string, x: number, ty: number, size = 10, bold = false, color: [number,number,number] = cor.preto, align: 'left'|'center'|'right' = 'left') => {
-      doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      doc.setTextColor(...color); doc.text(String(t || ''), x, ty, { align });
-    };
-
-    // Header
-    rect(0, 0, W, 28, cor.preto);
-    text('ALTITUDE TOPOGRAFIA E ENGENHARIA LTDA', W / 2, 10, 13, true, cor.branco, 'center');
-    text('RUA JACUTINGA, 240 — TORRE 1 APTO 106  |  lourenco@altitudetopo.com.br', W / 2, 17, 8, false, [148, 163, 184], 'center');
-    rect(0, 28, W, 12, cor.verde);
-    text('RELATÓRIO DIÁRIO DE OBRA (RDO)', W / 2, 36, 12, true, cor.branco, 'center');
-    y = 46;
-
-    // Dados gerais
-    rect(margin, y, W - margin * 2, 7, cor.cinzaClaro);
-    text('DADOS GERAIS', margin + 3, y + 5, 9, true, cor.cinza);
-    y += 10;
-
-    const turnos = [rdo.turnoManha && 'Manhã', rdo.turnoTarde && 'Tarde', rdo.turnoNoite && 'Noite'].filter(Boolean).join(' / ');
-    [
-      ['Nº RDO', rdo.numero || '—', 'Obra', obraNome],
-      ['Data', fmtD(rdo.data?.slice?.(0,10) ?? rdo.data), 'Responsável', rdo.responsavel || '—'],
-      ['Endereço', rdo.endereco || '—', 'Turno', turnos || '—'],
-    ].forEach(([l1, v1, l2, v2]) => {
-      text(l1 + ':', margin, y + 4, 8, true, cor.cinza);
-      text(v1, margin + 22, y + 4, 9);
-      text(l2 + ':', W / 2, y + 4, 8, true, cor.cinza);
-      text(v2, W / 2 + 26, y + 4, 9);
-      y += 7;
+async function exportarPDF(rdo: any, obraNome: string) {
+  // Carregar jsPDF se necessário
+  if (!(window as any).jspdf) {
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = () => resolve(); s.onerror = reject;
+      document.head.appendChild(s);
     });
-    y += 3;
+  }
 
-    // MO e Equipamentos
-    const moi = parse(rdo.moi, []);
-    const mod = parse(rdo.mod, []);
-    const eq  = parse(rdo.equipamentos, []);
-    const colW = (W - margin * 2) / 3;
-
-    rect(margin, y, W - margin * 2, 7, cor.cinzaClaro);
-    text('MÃO DE OBRA E EQUIPAMENTOS', margin + 3, y + 5, 9, true, cor.cinza);
-    y += 10;
-
-    [
-      { titulo: 'MÃO DE OBRA INDIRETA', items: moi,  k1: 'funcao',   k2: 'qtde' },
-      { titulo: 'MÃO DE OBRA DIRETA',   items: mod,  k1: 'funcao',   k2: 'qtde' },
-      { titulo: 'EQUIPAMENTOS',          items: eq,   k1: 'descricao', k2: 'qtde' },
-    ].forEach((col, ci) => {
-      const cx = margin + ci * colW;
-      rect(cx, y, colW - 2, 6, cor.verde);
-      text(col.titulo, cx + 2, y + 4, 7, true, cor.branco);
-      let cy = y + 8;
-      (col.items || []).filter((i: any) => i[col.k1]).forEach((item: any) => {
-        text(item[col.k1], cx + 2, cy + 3, 8);
-        text(String(item[col.k2] || ''), cx + colW - 10, cy + 3, 8, true, cor.preto, 'right');
-        cy += 6;
-      });
+  // Carregar logo como base64
+  let logoDataUrl = '';
+  try {
+    const res = await fetch('/logo.png');
+    const blob = await res.blob();
+    logoDataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
     });
-    y += 8 + Math.max(moi.length, mod.length, eq.length) * 6 + 6;
+  } catch { /* sem logo */ }
 
-    // Tarefas
-    const tarefas = (parse(rdo.tarefas, []) as string[]).filter((t: string) => t?.trim());
-    if (tarefas.length > 0) {
-      rect(margin, y, W - margin * 2, 7, cor.cinzaClaro);
-      text('TAREFAS REALIZADAS', margin + 3, y + 5, 9, true, cor.cinza);
-      y += 10;
-      tarefas.forEach((t, i) => {
-        const lines = doc.splitTextToSize(`${i + 1}) ${t}`, W - margin * 2 - 4);
-        lines.forEach((line: string) => { text(line, margin + 3, y + 4, 9); y += 5; });
-        y += 1;
-      });
-      y += 4;
-    }
+  const { jsPDF } = (window as any).jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, margin = 14;
+  let y = 0;
 
-    // Ocorrências
-    const ocorrencias = (parse(rdo.ocorrencias, []) as string[]).filter((o: string) => o?.trim());
-    if (ocorrencias.length > 0) {
-      rect(margin, y, W - margin * 2, 7, cor.cinzaClaro);
-      text('OCORRÊNCIAS', margin + 3, y + 5, 9, true, cor.cinza);
-      y += 10;
-      ocorrencias.forEach((o, i) => {
-        const lines = doc.splitTextToSize(`${i + 1}) ${o}`, W - margin * 2 - 4);
-        lines.forEach((line: string) => { text(line, margin + 3, y + 4, 9); y += 5; });
-        y += 1;
-      });
-      y += 4;
-    }
+  const fmtD = (d: string) => d ? d.split('-').reverse().join('/') : '—';
 
-    // Observações
-    if (rdo.obs) {
-      rect(margin, y, W - margin * 2, 7, cor.cinzaClaro);
-      text('OBSERVAÇÕES', margin + 3, y + 5, 9, true, cor.cinza);
-      y += 10;
-      doc.splitTextToSize(rdo.obs, W - margin * 2 - 4).forEach((line: string) => { text(line, margin + 3, y + 4, 9); y += 5; });
-      y += 4;
-    }
-
-    // Assinaturas
-    if (y > 230) { doc.addPage(); y = 20; }
-    const assSt = rdo.rdoStatus === 'assinado' ? cor.verde : cor.cinzaClaro;
-    rect(margin, y, W - margin * 2, 7, assSt);
-    text('ASSINATURAS', margin + 3, y + 5, 9, true, rdo.rdoStatus === 'assinado' ? cor.branco : cor.cinza);
-    y += 12;
-
-    [
-      { titulo: 'RESPONSÁVEL',  nome: rdo.responsavel || '—', assinado: rdo.rdoStatus === 'assinado', data: rdo.assinaturaEngData },
-      { titulo: 'CONTRATADA',   nome: 'Altitude Topografia e Engenharia Ltda', assinado: rdo.rdoStatus === 'assinado', data: null },
-      { titulo: 'CONTRATANTE',  nome: obraNome, assinado: false, data: null },
-    ].forEach((col, ci) => {
-      const cx = margin + ci * colW;
-      rect(cx, y, colW - 2, 28, cor.cinzaClaro);
-      text(col.titulo, cx + (colW - 2) / 2, y + 5, 7, true, cor.cinza, 'center');
-      if (col.assinado) {
-        text('✓ ASSINADO ELETRONICAMENTE', cx + (colW - 2) / 2, y + 14, 7, true, cor.verde, 'center');
-        text(col.nome, cx + (colW - 2) / 2, y + 20, 8, false, cor.preto, 'center');
-        if (col.data) text(col.data.split('-').reverse().join('/'), cx + (colW - 2) / 2, y + 25, 7, false, cor.cinza, 'center');
-      } else {
-        doc.setDrawColor(...cor.cinza); doc.line(cx + 4, y + 22, cx + colW - 6, y + 22);
-        text(col.nome, cx + (colW - 2) / 2, y + 27, 7, false, cor.cinza, 'center');
-      }
-    });
-    y += 34;
-
-    // Rodapé
-    rect(0, 285, W, 12, cor.preto);
-    text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}  |  Central Altitude — Topografia`, W / 2, 292, 7, false, [148, 163, 184] as any, 'center');
-    if (rdo.rdoStatus === 'assinado') {
-      text('Assinatura eletrônica com validade jurídica — MP 2.200-2/2001', W / 2, 297, 6, false, cor.verde, 'center');
-    }
-
-    doc.save(`RDO_${rdo.numero || rdo.id}_${obraNome.replace(/\s+/g, '_')}.pdf`);
+  // Paleta do sistema
+  const cor = {
+    primario:      [46, 125, 50]   as [number,number,number], // primary-800 #2E7D32
+    primarioClaro: [200, 230, 201] as [number,number,number], // primary-100 #C8E6C9
+    primarioEscuro:[27, 94, 32]    as [number,number,number], // primary-900 #1B5E20
+    texto:         [17, 24, 39]    as [number,number,number], // neutral-900
+    textoSec:      [107, 114, 128] as [number,number,number], // neutral-500
+    fundo:         [245, 245, 245] as [number,number,number], // bg #F5F5F5
+    fundoCard:     [255, 255, 255] as [number,number,number], // white
+    borda:         [229, 231, 235] as [number,number,number], // neutral-200
+    branco:        [255, 255, 255] as [number,number,number],
+    verde:         [46, 125, 50]   as [number,number,number],
   };
-  document.head.appendChild(script);
+
+  const rect = (x: number, ry: number, w: number, h: number, rgb: [number,number,number], stroke = false) => {
+    doc.setFillColor(...rgb);
+    if (stroke) { doc.setDrawColor(...cor.borda); doc.rect(x, ry, w, h, 'FD'); }
+    else doc.rect(x, ry, w, h, 'F');
+  };
+  const text = (t: string, x: number, ty: number, size = 10, bold = false, color: [number,number,number] = cor.texto, align: 'left'|'center'|'right' = 'left') => {
+    doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setTextColor(...color); doc.text(String(t || ''), x, ty, { align });
+  };
+  const secHeader = (label: string) => {
+    rect(margin, y, W - margin * 2, 8, cor.primario);
+    text(label, margin + 4, y + 5.5, 9, true, cor.branco);
+    y += 11;
+  };
+
+  // ── CABEÇALHO ──────────────────────────────────────────────
+  rect(0, 0, W, 32, cor.fundoCard);
+  doc.setDrawColor(...cor.borda); doc.line(0, 32, W, 32);
+
+  // Logo
+  if (logoDataUrl) {
+    try { doc.addImage(logoDataUrl, 'PNG', margin, 4, 22, 22); } catch { /* skip */ }
+  }
+
+  // Nome e subtítulo
+  text('ALTITUDE TOPOGRAFIA', margin + 26, 11, 14, true, cor.primarioEscuro);
+  text('E ENGENHARIA LTDA', margin + 26, 17, 14, true, cor.primarioEscuro);
+  text('lourenco@altitudetopo.com.br', margin + 26, 23, 8, false, cor.textoSec);
+
+  // Badge RDO no canto direito
+  const rdoBadgeX = W - margin - 42;
+  rect(rdoBadgeX, 7, 42, 18, cor.primario);
+  text('RELATÓRIO DIÁRIO', rdoBadgeX + 21, 14, 8, true, cor.branco, 'center');
+  text('DE OBRA — RDO', rdoBadgeX + 21, 20, 8, true, cor.branco, 'center');
+
+  y = 37;
+
+  // ── DADOS GERAIS ───────────────────────────────────────────
+  secHeader('DADOS GERAIS');
+
+  rect(margin, y, W - margin * 2, 26, cor.fundo, true);
+  const turnos = [rdo.turnoManha && 'Manhã', rdo.turnoTarde && 'Tarde', rdo.turnoNoite && 'Noite'].filter(Boolean).join(' / ');
+  const col2X = W / 2 + 3;
+  const labelW = 26;
+  [
+    ['Nº RDO',     rdo.numero || '—',                              'Obra',        obraNome],
+    ['Data',       fmtD(rdo.data?.slice?.(0,10) ?? rdo.data),      'Responsável', rdo.responsavel || '—'],
+    ['Endereço',   rdo.endereco || '—',                            'Turno',       turnos || '—'],
+  ].forEach(([l1, v1, l2, v2], i) => {
+    const ly = y + 5 + i * 8;
+    text(l1 + ':', margin + 3, ly, 8, true, cor.textoSec);
+    text(v1, margin + 3 + labelW, ly, 9, false, cor.texto);
+    text(l2 + ':', col2X, ly, 8, true, cor.textoSec);
+    text(v2, col2X + labelW, ly, 9, false, cor.texto);
+  });
+  y += 30;
+
+  // ── MÃO DE OBRA E EQUIPAMENTOS ─────────────────────────────
+  const moi = parse(rdo.moi, []);
+  const mod = parse(rdo.mod, []);
+  const eq  = parse(rdo.equipamentos, []);
+  const colW = (W - margin * 2 - 4) / 3;
+  const maxRows = Math.max(
+    (moi as any[]).filter((i: any) => i.funcao).length,
+    (mod as any[]).filter((i: any) => i.funcao).length,
+    (eq  as any[]).filter((i: any) => i.descricao).length,
+  );
+
+  secHeader('MÃO DE OBRA E EQUIPAMENTOS');
+
+  [
+    { titulo: 'MÃO DE OBRA INDIRETA', items: moi, k1: 'funcao',    k2: 'qtde' },
+    { titulo: 'MÃO DE OBRA DIRETA',   items: mod, k1: 'funcao',    k2: 'qtde' },
+    { titulo: 'EQUIPAMENTOS',          items: eq,  k1: 'descricao', k2: 'qtde' },
+  ].forEach((col, ci) => {
+    const cx = margin + ci * (colW + 2);
+    const cardH = 8 + maxRows * 7 + 4;
+    rect(cx, y, colW, cardH, cor.fundoCard, true);
+    rect(cx, y, colW, 7, cor.primarioClaro);
+    text(col.titulo, cx + colW / 2, y + 5, 7, true, cor.primarioEscuro, 'center');
+    let cy = y + 11;
+    (col.items || []).filter((i: any) => i[col.k1]).forEach((item: any) => {
+      text(item[col.k1], cx + 3, cy, 8, false, cor.texto);
+      text(String(item[col.k2] ?? ''), cx + colW - 3, cy, 8, true, cor.primario, 'right');
+      cy += 7;
+    });
+  });
+  y += 8 + maxRows * 7 + 8;
+
+  // ── TAREFAS ────────────────────────────────────────────────
+  const tarefas = (parse(rdo.tarefas, []) as string[]).filter((t: string) => t?.trim());
+  if (tarefas.length > 0) {
+    secHeader('TAREFAS REALIZADAS');
+    rect(margin, y, W - margin * 2, tarefas.length * 7 + 4, cor.fundoCard, true);
+    tarefas.forEach((t, i) => {
+      const lines = doc.splitTextToSize(`${i + 1}.  ${t}`, W - margin * 2 - 8);
+      lines.forEach((line: string) => {
+        text(line, margin + 4, y + 5, 9, false, cor.texto); y += 6;
+      });
+      y += 1;
+    });
+    y += 8;
+  }
+
+  // ── OCORRÊNCIAS ────────────────────────────────────────────
+  const ocorrencias = (parse(rdo.ocorrencias, []) as string[]).filter((o: string) => o?.trim());
+  if (ocorrencias.length > 0) {
+    secHeader('OCORRÊNCIAS');
+    rect(margin, y, W - margin * 2, ocorrencias.length * 7 + 4, cor.fundoCard, true);
+    ocorrencias.forEach((o, i) => {
+      const lines = doc.splitTextToSize(`${i + 1}.  ${o}`, W - margin * 2 - 8);
+      lines.forEach((line: string) => {
+        text(line, margin + 4, y + 5, 9, false, cor.texto); y += 6;
+      });
+      y += 1;
+    });
+    y += 8;
+  }
+
+  // ── OBSERVAÇÕES ────────────────────────────────────────────
+  if (rdo.obs?.trim()) {
+    secHeader('OBSERVAÇÕES');
+    const lines = doc.splitTextToSize(rdo.obs, W - margin * 2 - 8);
+    rect(margin, y, W - margin * 2, lines.length * 6 + 6, cor.fundoCard, true);
+    lines.forEach((line: string) => { text(line, margin + 4, y + 5, 9, false, cor.texto); y += 6; });
+    y += 10;
+  }
+
+  // ── ASSINATURAS ────────────────────────────────────────────
+  if (y > 225) { doc.addPage(); y = 20; }
+  secHeader('ASSINATURAS');
+
+  const assCols = [
+    { titulo: 'RESPONSÁVEL', nome: rdo.responsavel || '—', assinado: rdo.rdoStatus === 'assinado', data: rdo.assinaturaEngData },
+    { titulo: 'CONTRATADA',  nome: 'Altitude Topografia',   assinado: rdo.rdoStatus === 'assinado', data: null },
+    { titulo: 'CONTRATANTE', nome: obraNome,                 assinado: false, data: null },
+  ];
+  assCols.forEach((col, ci) => {
+    const cx = margin + ci * (colW + 2);
+    rect(cx, y, colW, 30, cor.fundoCard, true);
+    rect(cx, y, colW, 7, col.assinado ? cor.primarioClaro : cor.fundo);
+    text(col.titulo, cx + colW / 2, y + 5, 7, true, cor.primarioEscuro, 'center');
+    if (col.assinado) {
+      text('ASSINADO', cx + colW / 2, y + 15, 8, true, cor.primario, 'center');
+      text(col.nome, cx + colW / 2, y + 21, 8, false, cor.texto, 'center');
+      if (col.data) text(fmtD(col.data), cx + colW / 2, y + 27, 7, false, cor.textoSec, 'center');
+    } else {
+      doc.setDrawColor(...cor.borda); doc.line(cx + 5, y + 24, cx + colW - 5, y + 24);
+      text(col.nome, cx + colW / 2, y + 29, 7, false, cor.textoSec, 'center');
+    }
+  });
+  y += 36;
+
+  // ── RODAPÉ ─────────────────────────────────────────────────
+  const footerY = 284;
+  doc.setDrawColor(...cor.primarioClaro); doc.line(margin, footerY, W - margin, footerY);
+  text(
+    `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}  ·  Central Altitude — Sistema de Gestão`,
+    W / 2, footerY + 5, 7, false, cor.textoSec, 'center',
+  );
+
+  doc.save(`RDO_${rdo.numero || rdo.id}_${obraNome.replace(/\s+/g, '_')}.pdf`);
 }
 
 // ── Subcomponents ────────────────────────────────────────────
