@@ -108,18 +108,34 @@ enum SolicitacaoStatus {
 }
 
 model RDO {
-  id          String       @id @default(cuid())
-  obraId      String
-  obra        Obra         @relation(fields: [obraId], references: [id])
-  data        DateTime
-  clima       String?
-  atividades  String?
-  observacoes String?
-  fotos       String[]     @default([])
-  equipe      Json?
-  assinaturas Assinatura[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  obraId            String
+  obra              Obra         @relation(fields: [obraId], references: [id])
+  numero            String?
+  data              DateTime
+  endereco          String?
+  responsavel       String?
+  turnoManha        Boolean      @default(true)
+  turnoTarde        Boolean      @default(true)
+  turnoNoite        Boolean      @default(false)
+  moi               Json?
+  mod               Json?
+  equipamentos      Json?
+  tarefas           Json?
+  ocorrencias       Json?
+  obs               String?
+  rdoStatus         String       @default("rascunho")
+  assinaturaEngNome String?
+  assinaturaEngData String?
+  // legacy
+  clima             String?
+  atividades        String?
+  observacoes       String?
+  fotos             String[]     @default([])
+  equipe            Json?
+  assinaturas       Assinatura[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@map("rdos")
 }

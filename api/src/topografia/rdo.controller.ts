@@ -49,6 +49,11 @@ export class RdoController {
     return this.service.assinar(id, body.token);
   }
 
+  @Post(':id/assinar-eng')
+  assinarEng(@Param('id') id: string, @Body() body: { nome: string }) {
+    return this.service.assinarEng(id, body.nome);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) { return this.service.remove(id); }
 }
