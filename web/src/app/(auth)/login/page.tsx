@@ -1,15 +1,17 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Triangle } from 'lucide-react';
+import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { Logo } from '@/components/ui/Logo';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
-  const [email, setEmail] = useState('admin@centralaltitude.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -30,14 +32,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 bg-primary-800 rounded-2xl flex items-center justify-center mb-3">
-              <Triangle size={28} className="text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-neutral-900">Central Altitude</h1>
+            <Logo size="lg" showText={false} />
+            <h1 className="text-xl font-bold text-neutral-900 mt-4">Central Altitude</h1>
             <p className="text-sm text-neutral-500 mt-1">Sistema de Gestão</p>
           </div>
 
@@ -78,9 +77,9 @@ export default function LoginPage() {
             </div>
 
             <div className="flex justify-end">
-              <button type="button" className="text-sm text-primary-700 hover:underline">
+              <Link href="/forgot-password" className="text-sm text-primary-700 hover:underline">
                 Esqueci minha senha
-              </button>
+              </Link>
             </div>
 
             <button

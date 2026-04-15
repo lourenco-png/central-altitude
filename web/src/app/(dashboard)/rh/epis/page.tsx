@@ -13,7 +13,7 @@ import type { EPI, Funcionario } from '@/types';
 export default function EpisPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ funcionarioId: '', descricao: '', ca: '', validade: '' });
+  const [form, setForm] = useState({ funcionarioId: '', descricao: '', ca: '', validade: '', dataEntrega: '' });
   const [filter, setFilter] = useState('');
 
   const { data: epis = [], isLoading } = useQuery<EPI[]>({
@@ -74,6 +74,7 @@ export default function EpisPage() {
             { key: 'funcionario', label: 'Funcionário', render: (e) => e.funcionario?.nome || '-' },
             { key: 'descricao', label: 'EPI' },
             { key: 'ca', label: 'CA Nº', render: (e) => e.ca || '-' },
+            { key: 'dataEntrega', label: 'Entrega', render: (e) => (e as any).dataEntrega ? formatDate((e as any).dataEntrega) : '-' },
             {
               key: 'validade', label: 'Validade',
               render: (e) => {
@@ -101,7 +102,7 @@ export default function EpisPage() {
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Novo EPI">
-        <form onSubmit={(e) => { e.preventDefault(); createMut.mutate({ ...form, validade: form.validade ? new Date(form.validade) : null }); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); createMut.mutate({ ...form, validade: form.validade ? new Date(form.validade) : null, dataEntrega: form.dataEntrega ? new Date(form.dataEntrega) : null }); }} className="space-y-4">
           <div>
             <label className="label">Funcionário *</label>
             <select value={form.funcionarioId} onChange={e => setForm({ ...form, funcionarioId: e.target.value })} className="input" required>
@@ -110,8 +111,9 @@ export default function EpisPage() {
             </select>
           </div>
           <div><label className="label">Descrição *</label><input value={form.descricao} onChange={e => setForm({ ...form, descricao: e.target.value })} className="input" required placeholder="Ex: Capacete de Segurança" /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div><label className="label">CA Nº</label><input value={form.ca} onChange={e => setForm({ ...form, ca: e.target.value })} className="input" /></div>
+            <div><label className="label">Data Entrega</label><input type="date" value={form.dataEntrega} onChange={e => setForm({ ...form, dataEntrega: e.target.value })} className="input" /></div>
             <div><label className="label">Validade</label><input type="date" value={form.validade} onChange={e => setForm({ ...form, validade: e.target.value })} className="input" /></div>
           </div>
           <div className="flex gap-3 justify-end pt-2">

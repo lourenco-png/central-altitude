@@ -21,6 +21,37 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELADO: 'bg-red-100 text-red-800 border-red-200',
 };
 
+// Feriados nacionais brasileiros (fixos + variáveis 2025/2026)
+const FERIADOS: Record<string, string> = {
+  '01-01': 'Ano Novo',
+  '04-21': 'Tiradentes',
+  '05-01': 'Dia do Trabalho',
+  '09-07': 'Independência',
+  '10-12': 'N. Sra. Aparecida',
+  '11-02': 'Finados',
+  '11-15': 'Proclamação da República',
+  '11-20': 'Consciência Negra',
+  '12-25': 'Natal',
+  // Variáveis 2025
+  '2025-03-04': 'Carnaval',
+  '2025-03-05': 'Carnaval',
+  '2025-04-18': 'Sexta-feira Santa',
+  '2025-04-20': 'Páscoa',
+  '2025-06-19': 'Corpus Christi',
+  // Variáveis 2026
+  '2026-02-17': 'Carnaval',
+  '2026-02-18': 'Carnaval',
+  '2026-04-03': 'Sexta-feira Santa',
+  '2026-04-05': 'Páscoa',
+  '2026-06-04': 'Corpus Christi',
+};
+
+function getFeriado(day: Date): string | null {
+  const mmdd = format(day, 'MM-dd');
+  const yyyymmdd = format(day, 'yyyy-MM-dd');
+  return FERIADOS[yyyymmdd] ?? FERIADOS[mmdd] ?? null;
+}
+
 export default function CalendarioPage() {
   const qc = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -119,17 +150,21 @@ export default function CalendarioPage() {
           {days.map((day) => {
             const events = dayEvents(day);
             const todayClass = isToday(day) ? 'bg-primary-50' : '';
+            const feriado = getFeriado(day);
             return (
               <div
                 key={day.toISOString()}
-                className={`min-h-[100px] border-b border-r border-neutral-100 p-1.5 cursor-pointer hover:bg-neutral-50 transition-colors ${todayClass}`}
+                className={`min-h-[100px] border-b border-r border-neutral-100 p-1.5 cursor-pointer hover:bg-neutral-50 transition-colors ${todayClass} ${feriado ? 'bg-red-50/40' : ''}`}
                 onClick={() => openNew(day)}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium mb-1 ${isToday(day) ? 'bg-primary-800 text-white' : 'text-neutral-700'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium mb-1 ${isToday(day) ? 'bg-primary-800 text-white' : feriado ? 'text-red-600 font-bold' : 'text-neutral-700'}`}>
                   {format(day, 'd')}
                 </div>
+                {feriado && (
+                  <div className="text-[10px] text-red-500 font-medium truncate mb-0.5 leading-tight">{feriado}</div>
+                )}
                 <div className="space-y-0.5">
-                  {events.slice(0, 3).map((ev) => (
+                  {events.slice(0, 2).map((ev) => (
                     <div
                       key={ev.id}
                       onClick={(e) => { e.stopPropagation(); setSelectedSol(ev); }}
@@ -138,8 +173,8 @@ export default function CalendarioPage() {
                       {ev.obra?.nome}
                     </div>
                   ))}
-                  {events.length > 3 && (
-                    <div className="text-[10px] text-neutral-400 pl-1">+{events.length - 3} mais</div>
+                  {events.length > 2 && (
+                    <div className="text-[10px] text-neutral-400 pl-1">+{events.length - 2} mais</div>
                   )}
                 </div>
               </div>
@@ -152,6 +187,7 @@ export default function CalendarioPage() {
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-200" /> Agendado</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-200" /> Concluído</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-200" /> Cancelado</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> Feriado Nacional</span>
         </div>
       </div>
 

@@ -22,4 +22,8 @@ export class UsersService {
   update(id: string, data: { nome?: string; role?: any; ativo?: boolean; avatar?: string }) {
     return this.prisma.user.update({ where: { id }, data });
   }
+
+  remove(id: string) {
+    return this.prisma.user.delete({ where: { id } });
+  }
 }

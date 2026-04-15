@@ -9,6 +9,7 @@ import {
   FileSignature, File, Kanban, UserCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/ui/Logo';
 
 interface NavItem {
   label: string;
@@ -72,15 +73,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       {/* Logo / empresa */}
       {!collapsed && (
         <div className="px-4 py-4 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-800 rounded-lg flex items-center justify-center">
-              <Triangle size={16} className="text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-neutral-900 leading-tight">Central Altitude</p>
-              <p className="text-xs text-neutral-500">Topografia</p>
-            </div>
-          </div>
+          <Logo size="sm" />
         </div>
       )}
 

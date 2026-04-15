@@ -7,9 +7,10 @@ import { SolicitacoesController } from './solicitacoes.controller';
 import { SolicitacoesService } from './solicitacoes.service';
 import { RdoController } from './rdo.controller';
 import { RdoService } from './rdo.service';
+import { PdfService } from '../comercial/pdf.service';
 
 @Module({
   controllers: [ObrasController, EngenheirosController, SolicitacoesController, RdoController],
-  providers: [ObrasService, EngenheirosService, SolicitacoesService, RdoService],
+  providers: [ObrasService, EngenheirosService, SolicitacoesService, RdoService, PdfService],
 })
 export class TopografiaModule {}

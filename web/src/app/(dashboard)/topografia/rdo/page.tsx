@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, Send, PenTool, CheckCircle, Clock } from 'lucide-react';
+import { Plus, FileText, Send, PenTool, CheckCircle, Clock, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -100,6 +100,7 @@ export default function RdoPage() {
             <div className="sticky top-0 bg-white border-b border-neutral-100 px-6 py-4 flex items-center justify-between">
               <h3 className="font-semibold text-lg">RDO — {selectedRdo.obra?.nome}</h3>
               <div className="flex gap-2">
+                <button onClick={() => pdfMut.mutate(selectedRdo.id)} disabled={pdfMut.isPending} className="btn-secondary text-xs"><Download size={13} /> {pdfMut.isPending ? 'Gerando...' : 'PDF'}</button>
                 <button onClick={() => setShowAssinar(true)} className="btn-secondary text-xs"><Send size={13} /> Enviar para Assinatura</button>
                 <button onClick={() => assinarMut.mutate(selectedRdo.id)} className="btn-primary text-xs"><PenTool size={13} /> Assinar</button>
               </div>

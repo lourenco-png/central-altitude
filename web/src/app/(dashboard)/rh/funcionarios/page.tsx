@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -9,7 +9,18 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Table } from '@/components/ui/Table';
 import { formatDate, getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import type { Funcionario } from '@/types';
+import type { Funcionario, DocumentoFunc } from '@/types';
+
+function isExpiringSoon(validade?: string): boolean {
+  if (!validade) return false;
+  const diff = new Date(validade).getTime() - Date.now();
+  return diff >= 0 && diff <= 30 * 24 * 60 * 60 * 1000;
+}
+
+function isExpired(validade?: string): boolean {
+  if (!validade) return false;
+  return new Date(validade).getTime() < Date.now();
+}
 
 export default function FuncionariosPage() {
   const qc = useQueryClient();
@@ -18,10 +29,18 @@ export default function FuncionariosPage() {
   const [selected, setSelected] = useState<Funcionario | null>(null);
   const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis'>('dados');
   const [form, setForm] = useState({ nome: '', cpf: '', cargo: '', setor: '', telefone: '', email: '', admissao: '', status: 'ATIVO' });
+  const [showDocForm, setShowDocForm] = useState(false);
+  const [docForm, setDocForm] = useState({ nome: '', emissao: '', validade: '' });
 
   const { data: funcionarios = [], isLoading } = useQuery<Funcionario[]>({
     queryKey: ['funcionarios'],
     queryFn: () => api.get('/rh/funcionarios').then(r => r.data),
+  });
+
+  const { data: selectedFull, refetch: refetchSelected } = useQuery<Funcionario>({
+    queryKey: ['funcionario', selected?.id],
+    queryFn: () => api.get(`/rh/funcionarios/${selected!.id}`).then(r => r.data),
+    enabled: !!selected,
   });
 
   const createMut = useMutation({
@@ -39,6 +58,16 @@ export default function FuncionariosPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['funcionarios'] }); toast.success('Removido'); },
   });
 
+  const addDocMut = useMutation({
+    mutationFn: (d: any) => api.post(`/rh/funcionarios/${selected!.id}/documentos`, d),
+    onSuccess: () => { refetchSelected(); toast.success('Documento adicionado!'); setShowDocForm(false); setDocForm({ nome: '', emissao: '', validade: '' }); },
+  });
+
+  const removeDocMut = useMutation({
+    mutationFn: (docId: string) => api.delete(`/rh/funcionarios/documentos/${docId}`),
+    onSuccess: () => { refetchSelected(); toast.success('Documento removido'); },
+  });
+
   const openEdit = (f: Funcionario) => {
     setEditing(f);
     setForm({ nome: f.nome, cpf: f.cpf, cargo: f.cargo, setor: f.setor || '', telefone: f.telefone || '', email: f.email || '', admissao: f.admissao.split('T')[0], status: f.status });
@@ -50,6 +79,11 @@ export default function FuncionariosPage() {
     e.preventDefault();
     editing ? updateMut.mutate({ id: editing.id, d: form }) : createMut.mutate(form);
   };
+
+  const docs: DocumentoFunc[] = selectedFull?.documentos ?? selected?.documentos ?? [];
+  const epis = selectedFull?.epis ?? selected?.epis ?? [];
+
+  const docsAlert = docs.filter(d => isExpiringSoon(d.validade) || isExpired(d.validade)).length;
 
   return (
     <div>
@@ -65,7 +99,7 @@ export default function FuncionariosPage() {
       <div className="card">
         <Table<Funcionario>
           loading={isLoading} data={funcionarios}
-          onRowClick={(f) => setSelected(f)}
+          onRowClick={(f) => { setSelected(f); setActiveTab('dados'); }}
           columns={[
             {
               key: 'nome', label: 'Nome',
@@ -98,7 +132,7 @@ export default function FuncionariosPage() {
       {selected && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setSelected(null)} />
-          <div className="relative bg-white w-96 h-full shadow-2xl flex flex-col">
+          <div className="relative bg-white w-[420px] h-full shadow-2xl flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center font-bold text-primary-700">{getInitials(selected.nome)}</div>
@@ -111,8 +145,11 @@ export default function FuncionariosPage() {
             </div>
             <div className="flex border-b">
               {(['dados', 'docs', 'epis'] as const).map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2.5 text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'border-b-2 border-primary-700 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2.5 text-sm font-medium capitalize transition-colors relative ${activeTab === tab ? 'border-b-2 border-primary-700 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
                   {tab === 'dados' ? 'Dados' : tab === 'docs' ? 'Documentos' : 'EPIs'}
+                  {tab === 'docs' && docsAlert > 0 && (
+                    <span className="absolute top-1.5 right-3 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center">{docsAlert}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -130,27 +167,66 @@ export default function FuncionariosPage() {
               )}
               {activeTab === 'docs' && (
                 <div>
-                  {!selected.documentos || selected.documentos.length === 0 ? (
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-neutral-700">Documentos</p>
+                    <button onClick={() => setShowDocForm(v => !v)} className="btn-secondary text-xs py-1 px-2"><Plus size={12} /> Adicionar</button>
+                  </div>
+
+                  {showDocForm && (
+                    <form onSubmit={(e) => { e.preventDefault(); addDocMut.mutate({ ...docForm, emissao: docForm.emissao || null, validade: docForm.validade || null }); }} className="bg-neutral-50 rounded-lg p-3 mb-3 space-y-2">
+                      <div><label className="label text-xs">Nome do documento *</label><input value={docForm.nome} onChange={e => setDocForm({ ...docForm, nome: e.target.value })} className="input text-sm" required placeholder="Ex: ASO, CNH..." /></div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><label className="label text-xs">Emissão</label><input type="date" value={docForm.emissao} onChange={e => setDocForm({ ...docForm, emissao: e.target.value })} className="input text-sm" /></div>
+                        <div><label className="label text-xs">Validade</label><input type="date" value={docForm.validade} onChange={e => setDocForm({ ...docForm, validade: e.target.value })} className="input text-sm" /></div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => setShowDocForm(false)} className="btn-secondary text-xs flex-1 justify-center">Cancelar</button>
+                        <button type="submit" disabled={addDocMut.isPending} className="btn-primary text-xs flex-1 justify-center">Salvar</button>
+                      </div>
+                    </form>
+                  )}
+
+                  {docs.length === 0 ? (
                     <div className="text-center py-8"><FileText size={32} className="text-neutral-300 mx-auto mb-2" /><p className="text-sm text-neutral-400">Nenhum documento</p></div>
                   ) : (
-                    selected.documentos.map((d) => (
-                      <div key={d.id} className="p-3 rounded-lg bg-neutral-50 mb-2 text-sm">
-                        <p className="font-medium">{d.nome}</p>
-                        {d.validade && <p className="text-xs text-neutral-400">Validade: {formatDate(d.validade)}</p>}
-                      </div>
-                    ))
+                    <div className="space-y-2">
+                      {docs.map((d) => {
+                        const expired = isExpired(d.validade);
+                        const expiring = isExpiringSoon(d.validade);
+                        return (
+                          <div key={d.id} className={`p-3 rounded-lg border text-sm flex items-start justify-between gap-2 ${expired ? 'bg-red-50 border-red-200' : expiring ? 'bg-orange-50 border-orange-200' : 'bg-neutral-50 border-neutral-200'}`}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {(expired || expiring) && <AlertTriangle size={12} className={expired ? 'text-red-500' : 'text-orange-500'} />}
+                                <p className="font-medium truncate">{d.nome}</p>
+                              </div>
+                              {d.emissao && <p className="text-xs text-neutral-400 mt-0.5">Emissão: {formatDate(d.emissao)}</p>}
+                              {d.validade && (
+                                <p className={`text-xs mt-0.5 ${expired ? 'text-red-600 font-medium' : expiring ? 'text-orange-600 font-medium' : 'text-neutral-400'}`}>
+                                  Validade: {formatDate(d.validade)} {expired ? '(VENCIDO)' : expiring ? '(vence em breve)' : ''}
+                                </p>
+                              )}
+                            </div>
+                            <button onClick={() => { if (confirm('Remover documento?')) removeDocMut.mutate(d.id); }} className="p-1 rounded hover:bg-red-100 flex-shrink-0">
+                              <Trash2 size={13} className="text-red-400" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}
               {activeTab === 'epis' && (
                 <div>
-                  {!selected.epis || selected.epis.length === 0 ? (
+                  {epis.length === 0 ? (
                     <div className="text-center py-8"><Shield size={32} className="text-neutral-300 mx-auto mb-2" /><p className="text-sm text-neutral-400">Nenhum EPI</p></div>
                   ) : (
-                    selected.epis.map((e) => (
+                    epis.map((e) => (
                       <div key={e.id} className="p-3 rounded-lg bg-neutral-50 mb-2 text-sm">
                         <p className="font-medium">{e.descricao}</p>
                         {e.ca && <p className="text-xs text-neutral-400">CA: {e.ca}</p>}
+                        {(e as any).dataEntrega && <p className="text-xs text-neutral-400">Entrega: {formatDate((e as any).dataEntrega)}</p>}
                         {e.validade && <p className="text-xs text-neutral-400">Validade: {formatDate(e.validade)}</p>}
                       </div>
                     ))

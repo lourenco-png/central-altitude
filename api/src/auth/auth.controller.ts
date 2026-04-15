@@ -15,8 +15,10 @@ export class AuthController {
   }
 
   @Post('register')
-  register(@Body() body: { email: string; password: string; nome: string }) {
-    return this.authService.register(body.email, body.password, body.nome);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  register(@Body() body: { email: string; password: string; nome: string; role?: string }) {
+    return this.authService.register(body.email, body.password, body.nome, body.role);
   }
 
   @Get('me')
@@ -31,5 +33,17 @@ export class AuthController {
   @ApiBearerAuth()
   changePassword(@Request() req, @Body() body: { currentPassword: string; newPassword: string }) {
     return this.authService.changePassword(req.user.userId, body.currentPassword, body.newPassword);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: { token: string; newPassword: string }) {
+    return this.authService.resetPassword(body.token, body.newPassword);
   }
 }
