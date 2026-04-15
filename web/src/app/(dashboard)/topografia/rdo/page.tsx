@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, FileText, Trash2, Edit2, Eye, CheckCircle, Clock, PenTool, Download, ChevronLeft } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -276,7 +276,7 @@ export default function RdoPage() {
     setForm(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const pendingExportRef = React.useRef(false);
+  const pendingExportRef = useRef(false);
   const saveMut = useMutation({
     mutationFn: (payload: any) =>
       editingId
