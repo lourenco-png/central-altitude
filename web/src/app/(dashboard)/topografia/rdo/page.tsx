@@ -276,6 +276,7 @@ export default function RdoPage() {
     setForm(prev => ({ ...prev, [key]: val }));
   }, []);
 
+  const pendingExportRef = React.useRef(false);
   const saveMut = useMutation({
     mutationFn: (payload: any) =>
       editingId
@@ -283,8 +284,16 @@ export default function RdoPage() {
         : api.post('/topografia/rdo', payload),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['rdos'] });
-      toast.success(editingId ? 'RDO atualizado!' : 'RDO criado!');
-      setView('list');
+      if (pendingExportRef.current) {
+        pendingExportRef.current = false;
+        const saved = res.data;
+        toast.success(editingId ? 'RDO atualizado!' : 'RDO criado!');
+        setView('list');
+        exportarPDF(saved, obras.find(o => o.id === saved.obraId)?.nome || '—');
+      } else {
+        toast.success(editingId ? 'RDO atualizado!' : 'RDO criado!');
+        setView('list');
+      }
     },
     onError: () => toast.error('Erro ao salvar RDO'),
   });
@@ -505,8 +514,8 @@ export default function RdoPage() {
           <button type="button" onClick={() => handleSave('rascunho')} disabled={saveMut.isPending} className="btn-secondary">
             💾 Salvar Rascunho
           </button>
-          <button type="button" onClick={() => handleSave('aguardando_assinatura')} disabled={saveMut.isPending} className="btn-primary">
-            {saveMut.isPending ? 'Salvando…' : '✅ Enviar para Assinatura'}
+          <button type="button" onClick={() => { pendingExportRef.current = true; handleSave('rascunho'); }} disabled={saveMut.isPending} className="btn-primary">
+            <Download size={14} /> {saveMut.isPending ? 'Salvando…' : 'Exportar PDF'}
           </button>
         </div>
       </div>
@@ -541,16 +550,9 @@ export default function RdoPage() {
                 <PenTool size={14} /> Assinar RDO
               </button>
             )}
-            {viewRdo.rdoStatus === 'assinado' && (
-              <button onClick={() => exportarPDF(viewRdo, obra?.nome || '—')} className="btn-primary text-sm">
-                <Download size={14} /> Exportar PDF
-              </button>
-            )}
-            {viewRdo.rdoStatus === 'rascunho' && (
-              <button onClick={() => enviarMut.mutate(viewRdo.id)} disabled={enviarMut.isPending} className="btn-secondary text-sm">
-                ✅ Enviar para Assinatura
-              </button>
-            )}
+            <button onClick={() => exportarPDF(viewRdo, obra?.nome || '—')} className="btn-primary text-sm">
+              <Download size={14} /> Exportar PDF
+            </button>
             <button onClick={() => openEdit(viewRdo)} className="btn-secondary text-sm"><Edit2 size={14} /> Editar</button>
           </div>
         </div>
@@ -717,11 +719,9 @@ export default function RdoPage() {
                 <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                   <button onClick={() => openView(rdo)} className="btn-secondary text-xs py-1.5 px-3"><Eye size={13} /> Ver</button>
                   <button onClick={() => openEdit(rdo)} className="btn-secondary text-xs py-1.5 px-3"><Edit2 size={13} /></button>
-                  {rdo.rdoStatus === 'assinado' && (
-                    <button onClick={() => exportarPDF(rdo, rdo.obra?.nome || obraNome(rdo.obraId))} className="text-xs py-1.5 px-3 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200">
-                      <Download size={13} />
-                    </button>
-                  )}
+                  <button onClick={() => exportarPDF(rdo, rdo.obra?.nome || obraNome(rdo.obraId))} className="text-xs py-1.5 px-3 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200">
+                    <Download size={13} />
+                  </button>
                   <button onClick={() => { if (confirm('Excluir RDO?')) deleteMut.mutate(rdo.id); }} className="text-xs py-1.5 px-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100">
                     <Trash2 size={13} />
                   </button>
