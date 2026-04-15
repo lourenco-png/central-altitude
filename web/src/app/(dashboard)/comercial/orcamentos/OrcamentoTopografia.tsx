@@ -93,8 +93,8 @@ function calcular(f: FormState) {
   const issTax = f.iss / 100;
   const margem = f.margem / 100;
 
-  const preco = (margem_val: number) => {
-    if (margem_val >= 1) return 0;
+  const preco = (margem_val: number): { semImposto: number; comImposto: number } => {
+    if (margem_val >= 1) return { semImposto: 0, comImposto: 0 };
     const semImposto = (custoTotal / (1 - margem_val)) * (1 + ajuste);
     const comImposto = semImposto / (1 - issTax);
     return { semImposto, comImposto };
