@@ -23,7 +23,7 @@ export default function LoginPage() {
       toast.success('Bem-vindo!');
       router.push('/dashboard');
     } catch {
-      toast.error('Credenciais inválidas. Verifique e-mail e senha.');
+      toast.error('Credenciais inválidas. Verifique usuário e senha.');
     } finally {
       setLoading(false);
     }
@@ -42,15 +42,15 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label">E-mail</label>
+              <label className="label">Usuário</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input"
-                placeholder="seu@email.com"
+                placeholder="admin"
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
 

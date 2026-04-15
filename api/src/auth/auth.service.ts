@@ -12,7 +12,9 @@ export class AuthService {
     private mailService: MailService,
   ) {}
 
-  async login(email: string, password: string) {
+  async login(emailOrUsername: string, password: string) {
+    // Allow login with just the username part (e.g., "admin" instead of "admin@centralaltitude.com")
+    const email = emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@centralaltitude.com`;
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.ativo) throw new UnauthorizedException('Credenciais inválidas');
 

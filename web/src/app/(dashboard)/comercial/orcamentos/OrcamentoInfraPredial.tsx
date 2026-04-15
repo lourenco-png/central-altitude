@@ -46,6 +46,11 @@ interface FormState {
   iss: number;
   margemMin: number;
   margemMax: number;
+  // Régua de valores
+  complexidade: 'BAIXA' | 'NORMAL' | 'ALTA';
+  prazo: 'FOLGADO' | 'NORMAL' | 'APERTADO';
+  conhecimento: 'RUIM' | 'NORMAL' | 'BOA';
+  visibilidade: 'RUIM' | 'NORMAL' | 'BOA';
   valorAdotado: number;
   parcelamento: string;
   condicoes: string;
@@ -53,12 +58,14 @@ interface FormState {
 }
 
 const DISCIPLINAS_DEFAULT: Disciplina[] = [
-  { id: 'agua',          nome: 'Água',          dh: 0, vdi: 0 },
-  { id: 'esgoto',        nome: 'Esgoto',        dh: 0, vdi: 0 },
-  { id: 'drenagem',      nome: 'Drenagem',      dh: 0, vdi: 0 },
-  { id: 'terraplanagem', nome: 'Terraplanagem', dh: 0, vdi: 0 },
-  { id: 'macrodrenagem', nome: 'Macrodrenagem', dh: 0, vdi: 0 },
+  { id: 'agua',          nome: 'Água',          dh: 0, vdi: 4500 },
+  { id: 'esgoto',        nome: 'Esgoto',        dh: 0, vdi: 4500 },
+  { id: 'drenagem',      nome: 'Drenagem',      dh: 0, vdi: 4500 },
+  { id: 'terraplanagem', nome: 'Terraplanagem', dh: 0, vdi: 4500 },
+  { id: 'macrodrenagem', nome: 'Macrodrenagem', dh: 0, vdi: 3000 },
 ];
+
+const ADJ: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10, FOLGADO: -0.10, APERTADO: 0.10, BOA: -0.10, RUIM: 0.10 };
 
 const DEFAULT: FormState = {
   clienteId: '',
@@ -70,7 +77,7 @@ const DEFAULT: FormState = {
   terceirizados: [],
   pctProspeccao: 20,
   pctOrganizacao: 15,
-  despesasEscritorio: 0,
+  despesasEscritorio: 4872,
   art: 0,
   plotagem: 0,
   gasolina: 0,
@@ -79,6 +86,10 @@ const DEFAULT: FormState = {
   iss: 11,
   margemMin: 10,
   margemMax: 30,
+  complexidade: 'NORMAL',
+  prazo: 'NORMAL',
+  conhecimento: 'NORMAL',
+  visibilidade: 'NORMAL',
   valorAdotado: 0,
   parcelamento: '',
   condicoes: '',
@@ -89,23 +100,24 @@ let _uid = 1;
 const uid = () => `custom-${_uid++}`;
 
 function calcular(f: FormState) {
-  const moDireta       = f.disciplinas.reduce((s, d) => s + d.dh * d.vdi, 0);
-  const totalTerceir   = f.terceirizados.reduce((s, t) => s + t.valor, 0);
-  const moIndireta     = moDireta * ((f.pctProspeccao + f.pctOrganizacao) / 100);
-  const custosDir      = f.art + f.plotagem + f.gasolina + f.hospedagem + f.alimentacao;
-  const subtotal       = moDireta + totalTerceir + moIndireta + f.despesasEscritorio + custosDir;
-  const issTax         = f.iss / 100;
+  const moDireta     = f.disciplinas.reduce((s, d) => s + d.dh * d.vdi, 0);
+  const totalTerceir = f.terceirizados.reduce((s, t) => s + t.valor, 0);
+  const moIndireta   = moDireta * ((f.pctProspeccao + f.pctOrganizacao) / 100);
+  const custosDir    = f.art + f.plotagem + f.gasolina + f.hospedagem + f.alimentacao;
+  const subtotal     = moDireta + totalTerceir + moIndireta + f.despesasEscritorio + custosDir;
+  const issTax       = f.iss / 100;
+  const ajuste       = (ADJ[f.complexidade] ?? 0) + (ADJ[f.prazo] ?? 0) + (ADJ[f.conhecimento] ?? 0) + (ADJ[f.visibilidade] ?? 0);
 
   const preco = (margem_pct: number) => {
     const m = Math.min(0.95, margem_pct / 100);
     if (1 - m - issTax <= 0) return 0;
-    return subtotal / (1 - m - issTax);
+    return (subtotal / (1 - m - issTax)) * (1 + ajuste);
   };
 
   const margemIdeal = (f.margemMin + f.margemMax) / 2;
 
   return {
-    moDireta, totalTerceir, moIndireta, custosDir, subtotal,
+    moDireta, totalTerceir, moIndireta, custosDir, subtotal, ajuste,
     precoMin:   preco(f.margemMin),
     precoIdeal: preco(margemIdeal),
     precoMax:   preco(f.margemMax),
@@ -441,6 +453,54 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
           </div>
         </section>
       </div>
+
+      {/* Régua de Valores */}
+      <section className="card p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Régua de Valores</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Complexidade</label>
+            <select value={f.complexidade} onChange={e => set('complexidade', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BAIXA">Baixa (−10%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="ALTA">Alta (+10%)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Prazo</label>
+            <select value={f.prazo} onChange={e => set('prazo', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="FOLGADO">Folgado (−10%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="APERTADO">Apertado (+10%)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Conhecimento</label>
+            <select value={f.conhecimento} onChange={e => set('conhecimento', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BOA">Bom (−10%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="RUIM">Ruim (+10%)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Visibilidade</label>
+            <select value={f.visibilidade} onChange={e => set('visibilidade', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BOA">Boa (−10%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="RUIM">Ruim (+10%)</option>
+            </select>
+          </div>
+        </div>
+        {calc.ajuste !== 0 && (
+          <p className="text-xs text-neutral-500">
+            Ajuste total: <strong>{calc.ajuste > 0 ? '+' : ''}{(calc.ajuste * 100).toFixed(0)}%</strong>
+          </p>
+        )}
+      </section>
 
       {/* Precificação */}
       <section className="card p-5 space-y-4">

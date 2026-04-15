@@ -13,14 +13,19 @@ interface Props {
   onCancel: () => void;
 }
 
+interface TeamMember {
+  id: string;
+  nome: string;
+  vdi: number;   // fixed rate R$/dia
+  dias: number;  // editable
+}
+
 interface FormState {
-  // Cabeçalho
   clienteId: string;
   empreendimento: string;
   local: string;
-  // MO Campo
-  qtdDiarias: number;
-  valorDiaria: number;
+  // Equipe de Campo
+  equipe: TeamMember[];
   // MO Escritório
   hh: number;
   valorHH: number;
@@ -37,23 +42,29 @@ interface FormState {
   // Régua de Valores
   complexidade: 'BAIXA' | 'NORMAL' | 'ALTA';
   prazo: 'FOLGADO' | 'NORMAL' | 'APERTADO';
-  risco: 'BAIXO' | 'NORMAL' | 'ALTO';
+  visibilidade: 'RUIM' | 'NORMAL' | 'BOA';
   // Precificação
-  margem: number;       // %
-  iss: number;          // %
-  simples: number;      // %
+  margem: number;   // %
+  iss: number;      // %
+  simples: number;  // %
   // Valor adotado
   valorAdotado: number;
   condicoes: string;
   status: string;
 }
 
+const EQUIPE_DEFAULT: TeamMember[] = [
+  { id: 'lourenco', nome: 'LOURENÇO', vdi: 350, dias: 0 },
+  { id: 'diego',    nome: 'DIEGO',    vdi: 350, dias: 0 },
+  { id: 'marcelo',  nome: 'MARCELO',  vdi: 250, dias: 0 },
+  { id: 'ajudante', nome: 'AJUDANTE', vdi: 100, dias: 0 },
+];
+
 const DEFAULT: FormState = {
   clienteId: '',
   empreendimento: '',
   local: '',
-  qtdDiarias: 0,
-  valorDiaria: 0,
+  equipe: EQUIPE_DEFAULT,
   hh: 0,
   valorHH: 262.5,
   pctProspeccao: 50,
@@ -66,7 +77,7 @@ const DEFAULT: FormState = {
   alimentacao: 0,
   complexidade: 'NORMAL',
   prazo: 'NORMAL',
-  risco: 'NORMAL',
+  visibilidade: 'NORMAL',
   margem: 30,
   iss: 10,
   simples: 37,
@@ -78,30 +89,30 @@ const DEFAULT: FormState = {
 // ── Adjustment maps ──────────────────────────────────────────
 const ADJ_COMPLEXIDADE: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10 };
 const ADJ_PRAZO: Record<string, number>        = { FOLGADO: -0.10, NORMAL: 0, APERTADO: 0.10 };
-const ADJ_RISCO: Record<string, number>        = { BAIXO: 0, NORMAL: 0.02, ALTO: 0.30 };
+const ADJ_VISIBILIDADE: Record<string, number> = { BOA: -0.10, NORMAL: 0, RUIM: 0.10 };
 
 // ── Helpers ──────────────────────────────────────────────────
 function calcular(f: FormState) {
-  const moCampo      = f.qtdDiarias * f.valorDiaria;
+  const moCampo      = f.equipe.reduce((s, m) => s + m.dias * m.vdi, 0);
   const moEscritorio = f.hh * f.valorHH;
   const moDireta     = moCampo + moEscritorio;
   const moIndireta   = moDireta * ((f.pctProspeccao + f.pctOrganizacao) / 100);
   const custosDir    = f.art + f.aluguelEquip + f.gasolina + f.hospedagem + f.estacas + f.alimentacao;
   const custoTotal   = moDireta + moIndireta + custosDir;
 
-  const ajuste = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_RISCO[f.risco];
-  const issTax = f.iss / 100;
-  const margem = f.margem / 100;
+  const ajuste  = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_VISIBILIDADE[f.visibilidade];
+  const margem  = f.margem / 100;
+  const simples = f.simples / 100;
 
-  const preco = (margem_val: number): { semImposto: number; comImposto: number } => {
-    if (margem_val >= 1) return { semImposto: 0, comImposto: 0 };
-    const semImposto = (custoTotal / (1 - margem_val)) * (1 + ajuste);
-    const comImposto = semImposto / (1 - issTax);
-    return { semImposto, comImposto };
+  const preco = (margem_val: number): { semNF: number; comNF: number } => {
+    if (margem_val >= 1) return { semNF: 0, comNF: 0 };
+    const semNF = (custoTotal / (1 - margem_val)) * (1 + ajuste);
+    const comNF = simples < 1 ? semNF / (1 - simples) : 0;
+    return { semNF, comNF };
   };
 
-  const margemMin  = Math.max(0, margem - 0.10);
-  const margemMax  = Math.min(0.95, margem + 0.10);
+  const margemMin = Math.max(0, margem - 0.10);
+  const margemMax = Math.min(0.95, margem + 0.10);
 
   return {
     moCampo, moEscritorio, moDireta, moIndireta, custosDir, custoTotal, ajuste,
@@ -137,7 +148,17 @@ function NumInput({ label, value, onChange, prefix = 'R$', step = 0.01, min = 0 
 export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
   const [f, setF] = useState<FormState>(() => {
     if (orcamento?.dadosEspecificos) {
-      return { ...DEFAULT, ...orcamento.dadosEspecificos, status: orcamento.status };
+      const d = orcamento.dadosEspecificos as any;
+      // Migrate legacy risco → visibilidade
+      if (d.risco && !d.visibilidade) {
+        const map: Record<string, string> = { BAIXO: 'BOA', NORMAL: 'NORMAL', ALTO: 'RUIM' };
+        d.visibilidade = map[d.risco] ?? 'NORMAL';
+      }
+      // Migrate legacy qtdDiarias/valorDiaria → equipe
+      if (!d.equipe) {
+        d.equipe = EQUIPE_DEFAULT.map(m => ({ ...m, dias: 0 }));
+      }
+      return { ...DEFAULT, ...d, status: orcamento.status };
     }
     return { ...DEFAULT, clienteId: orcamento?.clienteId || '' };
   });
@@ -146,15 +167,21 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
     setF(prev => ({ ...prev, [key]: val }));
   }, []);
 
+  const updateMembro = (id: string, dias: number) => {
+    setF(prev => ({
+      ...prev,
+      equipe: prev.equipe.map(m => m.id === id ? { ...m, dias } : m),
+    }));
+  };
+
   const calc = calcular(f);
 
-  // auto-set valorAdotado to ideal when not editing
   useEffect(() => {
-    if (!orcamento && calc.ideal && f.valorAdotado === 0) {
-      setF(prev => ({ ...prev, valorAdotado: Math.round((calc.ideal?.comImposto || 0) * 100) / 100 }));
+    if (!orcamento && f.valorAdotado === 0 && (calc.ideal?.comNF ?? 0) > 0) {
+      setF(prev => ({ ...prev, valorAdotado: Math.round((calc.ideal?.comNF || 0) * 100) / 100 }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calc.ideal?.comImposto]);
+  }, [calc.ideal?.comNF]);
 
   const { data: clientes = [] } = useQuery<Cliente[]>({
     queryKey: ['clientes'],
@@ -162,7 +189,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
   });
 
   const buildPayload = () => {
-    const total = f.valorAdotado || calc.ideal?.comImposto || 0;
+    const total = f.valorAdotado || calc.ideal?.comNF || 0;
     return {
       clienteId: f.clienteId,
       tipo: 'TOPOGRAFIA',
@@ -234,34 +261,64 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
         </div>
       </section>
 
-      {/* Custos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* MO Campo */}
-        <section className="card p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">MO Campo</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <NumInput label="Qtd. Diárias" value={f.qtdDiarias} onChange={v => set('qtdDiarias', v)} prefix="dias" step={1} />
-            <NumInput label="Valor Diária" value={f.valorDiaria} onChange={v => set('valorDiaria', v)} />
-          </div>
-          <div className="flex justify-between text-sm bg-blue-50 rounded-lg px-3 py-2">
-            <span className="text-blue-700 font-medium">Subtotal MO Campo</span>
-            <span className="font-bold text-blue-900">{formatCurrency(calc.moCampo)}</span>
-          </div>
-        </section>
+      {/* Equipe de Campo */}
+      <section className="card p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Equipe de Campo</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200">
+                <th className="text-left py-2 px-3 text-xs font-semibold text-neutral-500">Profissional</th>
+                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500">VDI (R$/dia)</th>
+                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500 w-36">Diárias</th>
+                <th className="text-right py-2 px-3 text-xs font-semibold text-neutral-500">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {f.equipe.map(m => {
+                const sub = m.dias * m.vdi;
+                return (
+                  <tr key={m.id} className="border-b border-neutral-100">
+                    <td className="py-1.5 px-3 font-medium text-neutral-700">{m.nome}</td>
+                    <td className="py-1.5 px-3 text-center text-neutral-500">{formatCurrency(m.vdi)}</td>
+                    <td className="py-1.5 px-3">
+                      <input
+                        type="number" min={0} step={0.5}
+                        value={m.dias || ''}
+                        onChange={e => updateMembro(m.id, parseFloat(e.target.value) || 0)}
+                        className="w-full text-center border border-neutral-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary-400 outline-none"
+                        placeholder="0"
+                      />
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-semibold text-neutral-700">
+                      {sub > 0 ? formatCurrency(sub) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-blue-50">
+                <td colSpan={3} className="py-2 px-3 text-xs font-semibold text-blue-700">Total MO Campo</td>
+                <td className="py-2 px-3 text-right font-bold text-blue-900">{formatCurrency(calc.moCampo)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
 
-        {/* MO Escritório */}
-        <section className="card p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">MO Escritório</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <NumInput label="Horas Técnicas (HH)" value={f.hh} onChange={v => set('hh', v)} prefix="h" step={0.5} />
-            <NumInput label="Valor HH" value={f.valorHH} onChange={v => set('valorHH', v)} />
-          </div>
-          <div className="flex justify-between text-sm bg-blue-50 rounded-lg px-3 py-2">
-            <span className="text-blue-700 font-medium">Subtotal MO Escritório</span>
-            <span className="font-bold text-blue-900">{formatCurrency(calc.moEscritorio)}</span>
-          </div>
-        </section>
-      </div>
+      {/* MO Escritório */}
+      <section className="card p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">MO Escritório</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <NumInput label="Horas Técnicas (HH)" value={f.hh} onChange={v => set('hh', v)} prefix="h" step={0.5} />
+          <NumInput label="Valor HH" value={f.valorHH} onChange={v => set('valorHH', v)} />
+        </div>
+        <div className="flex justify-between text-sm bg-blue-50 rounded-lg px-3 py-2">
+          <span className="text-blue-700 font-medium">Subtotal MO Escritório</span>
+          <span className="font-bold text-blue-900">{formatCurrency(calc.moEscritorio)}</span>
+        </div>
+      </section>
 
       {/* MO Indireta */}
       <section className="card p-5 space-y-4">
@@ -322,15 +379,15 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Risco</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Visibilidade</label>
             <select
-              value={f.risco}
-              onChange={e => set('risco', e.target.value)}
+              value={f.visibilidade}
+              onChange={e => set('visibilidade', e.target.value)}
               className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
             >
-              <option value="BAIXO">Baixo (0%)</option>
-              <option value="NORMAL">Normal (+2%)</option>
-              <option value="ALTO">Alto (+30%)</option>
+              <option value="BOA">Boa (−10%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="RUIM">Ruim (+10%)</option>
             </select>
           </div>
         </div>
@@ -361,30 +418,30 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
         <div className="grid grid-cols-3 gap-4">
           {/* MÍN */}
           <div className="rounded-xl border border-neutral-200 p-4 text-center">
-            <div className="text-xs font-semibold text-neutral-500 uppercase mb-2">Mínimo</div>
-            <div className="text-xs text-neutral-400 mb-1">Sem imposto</div>
-            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.min?.semImposto || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-1">Com ISS</div>
-            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.min?.comImposto || 0)}</div>
+            <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Mínimo</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.min?.semNF || 0)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.min?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {Math.max(0, f.margem - 10).toFixed(0)}%</div>
           </div>
           {/* IDEAL */}
           <div className="rounded-xl border-2 border-primary-400 bg-primary-50 p-4 text-center relative">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">Ideal</div>
-            <div className="text-xs font-semibold text-primary-600 uppercase mb-2">Recomendado</div>
-            <div className="text-xs text-neutral-400 mb-1">Sem imposto</div>
-            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.ideal?.semImposto || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-1">Com ISS</div>
-            <div className="text-2xl font-bold text-primary-700">{formatCurrency(calc.ideal?.comImposto || 0)}</div>
+            <div className="text-xs font-semibold text-primary-600 uppercase mb-3">Recomendado</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.ideal?.semNF || 0)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-2xl font-bold text-primary-700">{formatCurrency(calc.ideal?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {f.margem.toFixed(0)}%</div>
           </div>
           {/* MÁX */}
           <div className="rounded-xl border border-neutral-200 p-4 text-center">
-            <div className="text-xs font-semibold text-neutral-500 uppercase mb-2">Máximo</div>
-            <div className="text-xs text-neutral-400 mb-1">Sem imposto</div>
-            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.max?.semImposto || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-1">Com ISS</div>
-            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.max?.comImposto || 0)}</div>
+            <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Máximo</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.max?.semNF || 0)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.max?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {Math.min(95, f.margem + 10).toFixed(0)}%</div>
           </div>
         </div>
@@ -394,7 +451,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
       <section className="card p-5 space-y-4">
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Valor Adotado</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NumInput label="Valor final da proposta (com impostos)" value={f.valorAdotado} onChange={v => set('valorAdotado', v)} />
+          <NumInput label="Valor final da proposta" value={f.valorAdotado} onChange={v => set('valorAdotado', v)} />
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Condições de Pagamento</label>
             <input
@@ -405,13 +462,12 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             />
           </div>
         </div>
-        {/* Shortcuts */}
         <div className="flex gap-2 flex-wrap">
           <span className="text-xs text-neutral-500">Usar:</span>
           {[
-            { label: `Mínimo ${formatCurrency(calc.min?.comImposto || 0)}`, val: calc.min?.comImposto || 0 },
-            { label: `Ideal ${formatCurrency(calc.ideal?.comImposto || 0)}`, val: calc.ideal?.comImposto || 0 },
-            { label: `Máximo ${formatCurrency(calc.max?.comImposto || 0)}`, val: calc.max?.comImposto || 0 },
+            { label: `Sem NF Mín ${formatCurrency(calc.min?.semNF || 0)}`, val: calc.min?.semNF || 0 },
+            { label: `Com NF Ideal ${formatCurrency(calc.ideal?.comNF || 0)}`, val: calc.ideal?.comNF || 0 },
+            { label: `Com NF Máx ${formatCurrency(calc.max?.comNF || 0)}`, val: calc.max?.comNF || 0 },
           ].map(opt => (
             <button
               key={opt.label}
