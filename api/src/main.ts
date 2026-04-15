@@ -8,7 +8,17 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  app.enableCors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true });
+  app.enableCors({
+    origin: (origin, callback) => {
+      const allowed = process.env.FRONTEND_URL || 'http://localhost:3000';
+      if (!origin || origin === allowed || origin.endsWith('.vercel.app') || origin === 'http://localhost:3000') {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
