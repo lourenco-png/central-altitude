@@ -26,4 +26,7 @@ export class OrcamentosController {
 
   @Delete(':id')
   remove(@Param('id') id: string) { return this.service.remove(id); }
+
+  @Post(':id/gerar-link-aprovacao')
+  gerarLink(@Param('id') id: string) { return this.service.gerarLinkAprovacao(id); }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class OrcamentosService {
@@ -76,5 +77,41 @@ export class OrcamentosService {
 
   remove(id: string) {
     return this.prisma.orcamento.delete({ where: { id } });
+  }
+
+  // ── Aprovação pelo cliente ─────────────────────────────────
+
+  async gerarLinkAprovacao(id: string) {
+    const token = randomUUID();
+    const orc = await this.prisma.orcamento.update({
+      where: { id },
+      data: { aprovacaoToken: token, status: 'ENVIADO' as any },
+      include: { cliente: true },
+    });
+    return { token, orc };
+  }
+
+  findByToken(token: string) {
+    return this.prisma.orcamento.findUnique({
+      where: { aprovacaoToken: token },
+      include: {
+        cliente: { select: { id: true, nome: true, email: true } },
+        itens: { orderBy: { ordem: 'asc' } },
+      },
+    });
+  }
+
+  async responderAprovacao(token: string, aprovado: boolean, mensagem?: string) {
+    const orc = await this.prisma.orcamento.findUnique({ where: { aprovacaoToken: token } });
+    if (!orc) throw new Error('Token inválido');
+    return this.prisma.orcamento.update({
+      where: { aprovacaoToken: token },
+      data: {
+        aprovacaoResposta: aprovado ? 'APROVADO' : 'REJEITADO',
+        aprovacaoMensagem: mensagem || null,
+        status: aprovado ? ('APROVADO' as any) : ('REJEITADO' as any),
+      },
+      include: { cliente: true, itens: { orderBy: { ordem: 'asc' } } },
+    });
   }
 }

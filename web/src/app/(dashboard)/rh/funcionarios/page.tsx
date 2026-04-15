@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle, ExternalLink, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle, ExternalLink, Upload, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -11,6 +11,81 @@ import { PdfUploadButton } from '@/components/ui/PdfUploadButton';
 import { formatDate, getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Funcionario, DocumentoFunc } from '@/types';
+
+async function exportarHistoricoEPI(func: any, epis: any[]) {
+  if (!(window as any).jspdf) {
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = () => resolve(); s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  const { jsPDF } = (window as any).jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, M = 14;
+  const verde: [number,number,number] = [46, 125, 50];
+  const verdeClaro: [number,number,number] = [200, 230, 201];
+  const texto: [number,number,number] = [17, 24, 39];
+  const sec: [number,number,number] = [107, 114, 128];
+  const branco: [number,number,number] = [255, 255, 255];
+  const fundo: [number,number,number] = [245, 245, 245];
+  const borda: [number,number,number] = [229, 231, 235];
+
+  const rect = (x: number, y: number, w: number, h: number, c: [number,number,number]) => { doc.setFillColor(...c); doc.rect(x, y, w, h, 'F'); };
+  const text = (t: string, x: number, y: number, size = 10, bold = false, c: [number,number,number] = texto, align: 'left'|'center'|'right' = 'left') => {
+    doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setTextColor(...c); doc.text(String(t || ''), x, y, { align });
+  };
+
+  // Header
+  rect(0, 0, W, 20, verde);
+  text('ALTITUDE TOPOGRAFIA E ENGENHARIA LTDA', W / 2, 8, 12, true, branco, 'center');
+  text('FICHA DE ENTREGA DE EPIs', W / 2, 15, 9, false, verdeClaro, 'center');
+
+  let y = 25;
+  rect(M, y, W - M * 2, 8, verdeClaro);
+  text('FUNCIONÁRIO', M + 3, y + 5.5, 9, true, [27, 94, 32] as [number,number,number]);
+  y += 11;
+  rect(M, y, W - M * 2, 22, fundo);
+  doc.setDrawColor(...borda); doc.rect(M, y, W - M * 2, 22, 'D');
+  text('Nome:', M + 3, y + 6, 8, true, sec);  text(func.nome, M + 22, y + 6, 9);
+  text('Cargo:', M + 3, y + 13, 8, true, sec); text(func.cargo, M + 22, y + 13, 9);
+  text('Admissão:', M + 3, y + 20, 8, true, sec); text(func.admissao ? new Date(func.admissao).toLocaleDateString('pt-BR') : '—', M + 26, y + 20, 9);
+  y += 26;
+
+  rect(M, y, W - M * 2, 8, verde);
+  text('HISTÓRICO DE EPIs', M + 3, y + 5.5, 9, true, branco);
+  y += 11;
+
+  // Cabeçalho tabela
+  rect(M, y, W - M * 2, 7, verdeClaro);
+  text('Descrição', M + 3, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
+  text('CA', M + 90, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
+  text('Entrega', M + 120, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
+  text('Validade', M + 152, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
+  y += 9;
+
+  epis.forEach((e: any, i: number) => {
+    if (i % 2 === 1) rect(M, y - 1, W - M * 2, 8, fundo);
+    text(e.descricao, M + 3, y + 4, 8, false, texto);
+    text(e.ca || '—', M + 90, y + 4, 8, false, texto);
+    text(e.dataEntrega ? new Date(e.dataEntrega).toLocaleDateString('pt-BR') : '—', M + 120, y + 4, 8, false, texto);
+    text(e.validade ? new Date(e.validade).toLocaleDateString('pt-BR') : '—', M + 152, y + 4, 8, false, texto);
+    y += 8;
+  });
+
+  y += 12;
+  // Assinatura
+  doc.setDrawColor(...borda); doc.line(M, y, M + 75, y);
+  text('Assinatura do Funcionário', M + 37, y + 5, 8, false, sec, 'center');
+  doc.line(W - M - 75, y, W - M, y);
+  text('Responsável / Data', W - M - 37, y + 5, 8, false, sec, 'center');
+
+  doc.setDrawColor(...verdeClaro); doc.line(M, 284, W - M, 284);
+  text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Central Altitude`, W / 2, 289, 7, false, sec, 'center');
+
+  doc.save(`EPI_${func.nome.replace(/\s+/g, '_')}.pdf`);
+}
 
 function docUrl(arquivo?: string | null) {
   if (!arquivo) return '';
@@ -317,6 +392,16 @@ export default function FuncionariosPage() {
               {/* ── EPIs ── */}
               {activeTab === 'epis' && (
                 <div className="p-6">
+                  {epis.length > 0 && (
+                    <div className="flex justify-end mb-3">
+                      <button
+                        onClick={() => exportarHistoricoEPI(selected, epis)}
+                        className="btn-secondary text-xs"
+                      >
+                        <Download size={13} /> Exportar Histórico PDF
+                      </button>
+                    </div>
+                  )}
                   {epis.length === 0 ? (
                     <div className="text-center py-8">
                       <Shield size={32} className="text-neutral-300 mx-auto mb-2" />

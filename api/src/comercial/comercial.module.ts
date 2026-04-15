@@ -10,9 +10,12 @@ import { ContratosService } from './contratos.service';
 import { PipelineController } from './pipeline.controller';
 import { PipelineService } from './pipeline.service';
 import { PdfService } from './pdf.service';
+import { PropostaPublicaController } from './proposta-publica.controller';
+import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 
 @Module({
-  controllers: [ClientesController, OrcamentosController, PropostasController, ContratosController, PipelineController],
+  imports: [NotificacoesModule],
+  controllers: [ClientesController, OrcamentosController, PropostasController, ContratosController, PipelineController, PropostaPublicaController],
   providers: [ClientesService, OrcamentosService, PropostasService, ContratosService, PipelineService, PdfService],
 })
 export class ComercialModule {}

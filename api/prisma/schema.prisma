@@ -57,12 +57,28 @@ model Obra {
   cliente      Cliente       @relation(fields: [clienteId], references: [id])
   status       ObraStatus    @default(ATIVA)
   endereco     String?
+  fotos        String[]      @default([])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   solicitacoes Solicitacao[]
   rdos         RDO[]
+  medicoes     Medicao[]
 
   @@map("obras")
+}
+
+model Medicao {
+  id        String   @id @default(cuid())
+  obraId    String
+  obra      Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  descricao String
+  valor     Float
+  data      DateTime
+  status    String   @default("pendente")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("medicoes")
 }
 
 enum ObraStatus {
@@ -304,10 +320,13 @@ model Orcamento {
   total            Float           @default(0)
   condicoes        String?
   status           OrcamentoStatus @default(RASCUNHO)
-  dadosEspecificos Json?
-  proposta         Proposta?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  dadosEspecificos   Json?
+  aprovacaoToken     String?         @unique
+  aprovacaoResposta  String?
+  aprovacaoMensagem  String?
+  proposta           Proposta?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   @@map("orcamentos")
 }

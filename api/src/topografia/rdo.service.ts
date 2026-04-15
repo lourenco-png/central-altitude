@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
 const INCLUDE = { obra: { select: { id: true, nome: true } }, assinaturas: true };
 
 @Injectable()
 export class RdoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificacoes: NotificacoesService,
+  ) {}
+
+  private async notificarAdmins(titulo: string, mensagem: string, link?: string) {
+    const admins = await this.prisma.user.findMany({ where: { role: 'ADMIN', ativo: true }, select: { id: true } });
+    await Promise.all(admins.map(a => this.notificacoes.create({ userId: a.id, titulo, mensagem, tipo: 'info', link })));
+  }
 
   findAll(obraId?: string) {
     return this.prisma.rDO.findMany({
@@ -22,9 +31,9 @@ export class RdoService {
     });
   }
 
-  create(data: any) {
+  async create(data: any) {
     const { moi, mod, equipamentos, tarefas, ocorrencias, ...rest } = data;
-    return this.prisma.rDO.create({
+    const rdo = await this.prisma.rDO.create({
       data: {
         ...rest,
         ...(moi !== undefined ? { moi } : {}),
@@ -33,8 +42,14 @@ export class RdoService {
         ...(tarefas !== undefined ? { tarefas } : {}),
         ...(ocorrencias !== undefined ? { ocorrencias } : {}),
       },
-      include: INCLUDE,
+      include: { obra: { select: { id: true, nome: true } }, assinaturas: true },
     });
+    await this.notificarAdmins(
+      'Novo RDO criado',
+      `RDO ${rdo.numero ? `Nº ${rdo.numero}` : ''} — Obra: ${rdo.obra?.nome || ''}`,
+      '/topografia/rdo',
+    );
+    return rdo;
   }
 
   update(id: string, data: any) {
