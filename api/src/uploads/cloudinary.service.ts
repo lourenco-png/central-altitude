@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
+type UploadApiResponse = { secure_url: string; public_id: string; [key: string]: any };
 
 @Injectable()
 export class CloudinaryService {
