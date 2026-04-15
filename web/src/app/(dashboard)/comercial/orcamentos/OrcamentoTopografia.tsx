@@ -167,10 +167,10 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
     setF(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const updateMembro = (id: string, dias: number) => {
+  const updateMembro = (id: string, field: 'dias' | 'vdi', val: number) => {
     setF(prev => ({
       ...prev,
-      equipe: prev.equipe.map(m => m.id === id ? { ...m, dias } : m),
+      equipe: prev.equipe.map(m => m.id === id ? { ...m, [field]: val } : m),
     }));
   };
 
@@ -269,8 +269,8 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             <thead>
               <tr className="border-b border-neutral-200">
                 <th className="text-left py-2 px-3 text-xs font-semibold text-neutral-500">Profissional</th>
-                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500">VDI (R$/dia)</th>
-                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500 w-36">Diárias</th>
+                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500 w-36">VDI (R$/dia)</th>
+                <th className="text-center py-2 px-3 text-xs font-semibold text-neutral-500 w-32">Diárias</th>
                 <th className="text-right py-2 px-3 text-xs font-semibold text-neutral-500">Subtotal</th>
               </tr>
             </thead>
@@ -280,12 +280,19 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
                 return (
                   <tr key={m.id} className="border-b border-neutral-100">
                     <td className="py-1.5 px-3 font-medium text-neutral-700">{m.nome}</td>
-                    <td className="py-1.5 px-3 text-center text-neutral-500">{formatCurrency(m.vdi)}</td>
+                    <td className="py-1.5 px-3">
+                      <input
+                        type="number" min={0} step={50}
+                        value={m.vdi || ''}
+                        onChange={e => updateMembro(m.id, 'vdi', parseFloat(e.target.value) || 0)}
+                        className="w-full text-center border border-neutral-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary-400 outline-none"
+                      />
+                    </td>
                     <td className="py-1.5 px-3">
                       <input
                         type="number" min={0} step={0.5}
                         value={m.dias || ''}
-                        onChange={e => updateMembro(m.id, parseFloat(e.target.value) || 0)}
+                        onChange={e => updateMembro(m.id, 'dias', parseFloat(e.target.value) || 0)}
                         className="w-full text-center border border-neutral-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary-400 outline-none"
                         placeholder="0"
                       />

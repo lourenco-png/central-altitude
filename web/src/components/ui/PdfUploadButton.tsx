@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface PdfUploadButtonProps {
-  onUploaded: (url: string, originalname: string) => void;
+  onUploaded: (url: string, originalname?: string) => void;
   currentUrl?: string;
   onClear?: () => void;
   label?: string;

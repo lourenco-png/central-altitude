@@ -34,7 +34,8 @@ export default function FuncionariosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Funcionario | null>(null);
   const [selected, setSelected] = useState<Funcionario | null>(null);
-  const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis'>('dados');
+  // Documentos tab é o padrão quando abre o drawer
+  const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis'>('docs');
   const [form, setForm] = useState({ nome: '', cpf: '', cargo: '', setor: '', telefone: '', email: '', admissao: '', status: 'ATIVO' });
   const [docForm, setDocForm] = useState(emptyDoc);
   const [savingDoc, setSavingDoc] = useState(false);
@@ -67,7 +68,13 @@ export default function FuncionariosPage() {
 
   const addDocMut = useMutation({
     mutationFn: (d: any) => api.post(`/rh/funcionarios/${selected!.id}/documentos`, d),
-    onSuccess: () => { refetchSelected(); toast.success('Documento adicionado!'); setDocForm(emptyDoc); setSavingDoc(false); },
+    onSuccess: () => {
+      refetchSelected();
+      qc.invalidateQueries({ queryKey: ['funcionarios'] });
+      toast.success('Documento adicionado!');
+      setDocForm(emptyDoc);
+      setSavingDoc(false);
+    },
     onError: () => { toast.error('Erro ao salvar documento'); setSavingDoc(false); },
   });
 
@@ -104,6 +111,12 @@ export default function FuncionariosPage() {
   const epis = selectedFull?.epis ?? selected?.epis ?? [];
   const docsAlert = docs.filter(d => isExpiringSoon(d.validade) || isExpired(d.validade)).length;
 
+  const openDrawer = (f: Funcionario) => {
+    setSelected(f);
+    setActiveTab('docs');
+    setDocForm(emptyDoc);
+  };
+
   return (
     <div>
       <PageHeader
@@ -115,10 +128,18 @@ export default function FuncionariosPage() {
         }
       />
 
-      <div className="card">
+      {/* Hint quando nenhum funcionário selecionado */}
+      {!selected && funcionarios.length > 0 && (
+        <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl text-sm text-primary-700 flex items-center gap-2">
+          <FileText size={15} />
+          Clique em um funcionário para gerenciar documentos e EPIs.
+        </div>
+      )}
+
+      <div className={selected ? 'card mr-[480px]' : 'card'}>
         <Table<Funcionario>
           loading={isLoading} data={funcionarios}
-          onRowClick={(f) => { setSelected(f); setActiveTab('dados'); setDocForm(emptyDoc); }}
+          onRowClick={openDrawer}
           columns={[
             {
               key: 'nome', label: 'Nome',
@@ -167,7 +188,7 @@ export default function FuncionariosPage() {
 
             {/* Tabs */}
             <div className="flex border-b">
-              {(['dados', 'docs', 'epis'] as const).map((tab) => (
+              {(['docs', 'dados', 'epis'] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-2.5 text-sm font-medium relative transition-colors ${activeTab === tab ? 'border-b-2 border-primary-700 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
                   {tab === 'dados' ? 'Dados' : tab === 'docs' ? 'Documentos' : 'EPIs'}
@@ -181,22 +202,9 @@ export default function FuncionariosPage() {
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
 
-              {/* ── Dados ── */}
-              {activeTab === 'dados' && (
-                <div className="p-6 space-y-3 text-sm">
-                  <div><p className="text-neutral-400 text-xs">CPF</p><p>{selected.cpf}</p></div>
-                  <div><p className="text-neutral-400 text-xs">Cargo</p><p>{selected.cargo}</p></div>
-                  <div><p className="text-neutral-400 text-xs">Setor</p><p>{selected.setor || '-'}</p></div>
-                  <div><p className="text-neutral-400 text-xs">Admissão</p><p>{formatDate(selected.admissao)}</p></div>
-                  <div><p className="text-neutral-400 text-xs">Telefone</p><p>{selected.telefone || '-'}</p></div>
-                  <div><p className="text-neutral-400 text-xs">E-mail</p><p>{selected.email || '-'}</p></div>
-                  <div><p className="text-neutral-400 text-xs">Status</p><div className="mt-1"><StatusBadge status={selected.status} /></div></div>
-                </div>
-              )}
-
               {/* ── Documentos ── */}
               {activeTab === 'docs' && (
-                <div className="p-6 space-y-4">
+                <div className="p-4 space-y-4">
 
                   {/* Formulário de novo documento — SEMPRE VISÍVEL */}
                   <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
@@ -227,8 +235,9 @@ export default function FuncionariosPage() {
                         <label className="label text-xs">Arquivo PDF</label>
                         <PdfUploadButton
                           currentUrl={docForm.arquivo}
-                          onUploaded={(url) => setDocForm({ ...docForm, arquivo: url })}
-                          onClear={() => setDocForm({ ...docForm, arquivo: '' })}
+                          onUploaded={(url: string) => setDocForm(prev => ({ ...prev, arquivo: url }))}
+                          onClear={() => setDocForm(prev => ({ ...prev, arquivo: '' }))}
+                          label="Selecionar PDF"
                         />
                       </div>
                       <button
@@ -236,19 +245,21 @@ export default function FuncionariosPage() {
                         disabled={savingDoc || addDocMut.isPending}
                         className="btn-primary w-full justify-center text-sm"
                       >
-                        {savingDoc ? 'Salvando...' : 'Salvar Documento'}
+                        {savingDoc || addDocMut.isPending ? 'Salvando...' : 'Salvar Documento'}
                       </button>
                     </form>
                   </div>
 
                   {/* Lista de documentos */}
                   {docs.length === 0 ? (
-                    <div className="text-center py-6">
-                      <FileText size={32} className="text-neutral-300 mx-auto mb-2" />
-                      <p className="text-sm text-neutral-400">Nenhum documento cadastrado</p>
+                    <div className="text-center py-4">
+                      <FileText size={28} className="text-neutral-300 mx-auto mb-2" />
+                      <p className="text-sm text-neutral-400">Nenhum documento cadastrado ainda.</p>
+                      <p className="text-xs text-neutral-300 mt-1">Use o formulário acima para adicionar.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Documentos cadastrados ({docs.length})</p>
                       {docs.map((d) => {
                         const expired = isExpired(d.validade);
                         const expiring = isExpiringSoon(d.validade);
@@ -285,6 +296,24 @@ export default function FuncionariosPage() {
                 </div>
               )}
 
+              {/* ── Dados ── */}
+              {activeTab === 'dados' && (
+                <div className="p-6 space-y-3 text-sm">
+                  <div><p className="text-neutral-400 text-xs">CPF</p><p>{selected.cpf}</p></div>
+                  <div><p className="text-neutral-400 text-xs">Cargo</p><p>{selected.cargo}</p></div>
+                  <div><p className="text-neutral-400 text-xs">Setor</p><p>{selected.setor || '-'}</p></div>
+                  <div><p className="text-neutral-400 text-xs">Admissão</p><p>{formatDate(selected.admissao)}</p></div>
+                  <div><p className="text-neutral-400 text-xs">Telefone</p><p>{selected.telefone || '-'}</p></div>
+                  <div><p className="text-neutral-400 text-xs">E-mail</p><p>{selected.email || '-'}</p></div>
+                  <div><p className="text-neutral-400 text-xs">Status</p><div className="mt-1"><StatusBadge status={selected.status} /></div></div>
+                  <div className="pt-2">
+                    <button onClick={() => openEdit(selected)} className="btn-secondary text-xs w-full justify-center">
+                      <Edit2 size={13} /> Editar dados
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* ── EPIs ── */}
               {activeTab === 'epis' && (
                 <div className="p-6">
@@ -292,6 +321,7 @@ export default function FuncionariosPage() {
                     <div className="text-center py-8">
                       <Shield size={32} className="text-neutral-300 mx-auto mb-2" />
                       <p className="text-sm text-neutral-400">Nenhum EPI cadastrado</p>
+                      <p className="text-xs text-neutral-300 mt-1">Cadastre EPIs na página de EPIs do menu RH.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
