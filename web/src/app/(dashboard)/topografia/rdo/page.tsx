@@ -731,13 +731,6 @@ export default function RdoPage() {
           placeholder="🔍 Buscar por obra ou responsável..."
           className="input w-72"
         />
-        <div className="flex gap-2 ml-auto flex-wrap">
-          {Object.entries(STATUS).map(([k, v]) => (
-            <span key={k} className={`text-xs px-3 py-1 rounded-full font-bold ${v.bg} ${v.text}`}>
-              {v.icon} {rdos.filter(r => r.rdoStatus === k).length} {v.label}
-            </span>
-          ))}
-        </div>
       </div>
 
       {isLoading ? (

@@ -92,6 +92,7 @@ model Solicitacao {
   engenheiroId  String
   engenheiro    Engenheiro        @relation(fields: [engenheiroId], references: [id])
   data          DateTime
+  servico       String?
   status        SolicitacaoStatus @default(AGENDADO)
   observacoes   String?
   arquivos      String[]          @default([])

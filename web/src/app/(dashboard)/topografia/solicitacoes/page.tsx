@@ -17,7 +17,7 @@ export default function SolicitacoesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Solicitacao | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', observacoes: '' });
+  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', servico: '', observacoes: '' });
 
   const { data = [], isLoading } = useQuery<Solicitacao[]>({
     queryKey: ['solicitacoes', statusFilter],
@@ -34,7 +34,7 @@ export default function SolicitacoesPage() {
   const openEdit = (s: Solicitacao) => {
     setEditing(s);
     const dt = new Date(s.data);
-    setForm({ obraId: s.obraId, engenheiroId: s.engenheiroId, data: format(dt, 'yyyy-MM-dd'), horario: format(dt, 'HH:mm'), status: s.status, observacoes: s.observacoes || '' });
+    setForm({ obraId: s.obraId, engenheiroId: s.engenheiroId, data: format(dt, 'yyyy-MM-dd'), horario: format(dt, 'HH:mm'), status: s.status, servico: (s as any).servico || '', observacoes: s.observacoes || '' });
     setShowModal(true);
   };
   const closeModal = () => { setShowModal(false); setEditing(null); };
@@ -42,7 +42,7 @@ export default function SolicitacoesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const data = new Date(`${form.data}T${form.horario}:00`);
-    const d = { obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, observacoes: form.observacoes };
+    const d = { obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, servico: form.servico || null, observacoes: form.observacoes };
     editing ? updateMut.mutate({ id: editing.id, d }) : createMut.mutate(d);
   };
 
@@ -66,6 +66,7 @@ export default function SolicitacoesPage() {
           columns={[
             { key: 'obra', label: 'Obra', render: (s) => s.obra?.nome || '-' },
             { key: 'engenheiro', label: 'Engenheiro', render: (s) => s.engenheiro?.nome || '-' },
+            { key: 'servico', label: 'Serviço', render: (s) => <span className="line-clamp-1">{(s as any).servico || '-'}</span> },
             { key: 'data', label: 'Data/Hora', render: (s) => `${formatDate(s.data)} ${format(new Date(s.data), 'HH:mm')}` },
             { key: 'status', label: 'Status', render: (s) => <StatusBadge status={s.status} /> },
             { key: 'observacoes', label: 'Observações', render: (s) => <span className="text-neutral-500 line-clamp-1">{s.observacoes || '-'}</span> },
@@ -82,6 +83,7 @@ export default function SolicitacoesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div><label className="label">Obra *</label><select value={form.obraId} onChange={e => setForm({ ...form, obraId: e.target.value })} className="input" required><option value="">Selecionar...</option>{obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}</select></div>
           <div><label className="label">Engenheiro *</label><select value={form.engenheiroId} onChange={e => setForm({ ...form, engenheiroId: e.target.value })} className="input" required><option value="">Selecionar...</option>{engenheiros.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}</select></div>
+          <div><label className="label">Serviço *</label><input type="text" value={form.servico} onChange={e => setForm({ ...form, servico: e.target.value })} className="input" placeholder="Ex: Levantamento planialtimétrico, Locação de obra..." required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">Data *</label><input type="date" value={form.data} onChange={e => setForm({ ...form, data: e.target.value })} className="input" required /></div>
             <div><label className="label">Horário</label><input type="time" value={form.horario} onChange={e => setForm({ ...form, horario: e.target.value })} className="input" /></div>
