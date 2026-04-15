@@ -1,13 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, Building2, FileText, AlertTriangle } from 'lucide-react';
+import { Save, Plus, Trash2, Building2, FileText, AlertTriangle, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
+import { PdfUploadButton } from '@/components/ui/PdfUploadButton';
 import { formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Empresa } from '@/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 function isExpired(v?: string) { return !!v && new Date(v).getTime() < Date.now(); }
 function isExpiringSoon(v?: string) {
@@ -22,7 +25,7 @@ export default function EmpresaPage() {
   const [showSocio, setShowSocio] = useState(false);
   const [socioForm, setSocioForm] = useState({ nome: '', cpf: '', cargo: '' });
   const [showDoc, setShowDoc] = useState(false);
-  const [docForm, setDocForm] = useState({ nome: '', validade: '' });
+  const [docForm, setDocForm] = useState({ nome: '', validade: '', arquivo: '' });
 
   const { data: empresa } = useQuery<Empresa | null>({
     queryKey: ['empresa'],
@@ -50,7 +53,7 @@ export default function EmpresaPage() {
 
   const addDocMut = useMutation({
     mutationFn: (d: any) => api.post('/rh/empresa/documentos', { ...d, empresaId: empresa?.id }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['empresa'] }); toast.success('Documento adicionado!'); setShowDoc(false); setDocForm({ nome: '', validade: '' }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['empresa'] }); toast.success('Documento adicionado!'); setShowDoc(false); setDocForm({ nome: '', validade: '', arquivo: '' }); },
   });
 
   const removeDocMut = useMutation({
@@ -126,9 +129,14 @@ export default function EmpresaPage() {
                 return (
                   <div key={d.id} className={`p-3 rounded-lg border flex items-start justify-between gap-2 ${expired ? 'bg-red-50 border-red-200' : expiring ? 'bg-orange-50 border-orange-200' : 'bg-neutral-50 border-neutral-200'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {(expired || expiring) && <AlertTriangle size={12} className={expired ? 'text-red-500' : 'text-orange-500'} />}
                         <p className="text-sm font-medium truncate">{d.nome}</p>
+                        {d.arquivo && (
+                          <a href={`${API_URL}${d.arquivo}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
+                            <ExternalLink size={11} /> Ver PDF
+                          </a>
+                        )}
                       </div>
                       {d.validade && (
                         <p className={`text-xs mt-0.5 ${expired ? 'text-red-600 font-medium' : expiring ? 'text-orange-600 font-medium' : 'text-neutral-400'}`}>
@@ -159,13 +167,21 @@ export default function EmpresaPage() {
         </form>
       </Modal>
 
-      <Modal open={showDoc} onClose={() => setShowDoc(false)} title="Adicionar Documento" size="sm">
-        <form onSubmit={(e) => { e.preventDefault(); addDocMut.mutate({ ...docForm, validade: docForm.validade || null }); }} className="space-y-4">
-          <div><label className="label">Nome do Documento *</label><input value={docForm.nome} onChange={e => setDocForm({ ...docForm, nome: e.target.value })} className="input" required placeholder="Ex: Alvará, Licença..." /></div>
+      <Modal open={showDoc} onClose={() => { setShowDoc(false); setDocForm({ nome: '', validade: '', arquivo: '' }); }} title="Adicionar Documento" size="sm">
+        <form onSubmit={(e) => { e.preventDefault(); addDocMut.mutate({ ...docForm, validade: docForm.validade || null, arquivo: docForm.arquivo || null }); }} className="space-y-4">
+          <div><label className="label">Nome do Documento *</label><input value={docForm.nome} onChange={e => setDocForm({ ...docForm, nome: e.target.value })} className="input" required placeholder="Ex: Alvará, Licença, Certidão..." /></div>
           <div><label className="label">Validade</label><input type="date" value={docForm.validade} onChange={e => setDocForm({ ...docForm, validade: e.target.value })} className="input" /></div>
+          <div>
+            <label className="label">Arquivo PDF</label>
+            <PdfUploadButton
+              currentUrl={docForm.arquivo}
+              onUploaded={(url) => setDocForm({ ...docForm, arquivo: url })}
+              onClear={() => setDocForm({ ...docForm, arquivo: '' })}
+            />
+          </div>
           <div className="flex gap-3 justify-end pt-2">
-            <button type="button" onClick={() => setShowDoc(false)} className="btn-secondary">Cancelar</button>
-            <button type="submit" className="btn-primary">Salvar</button>
+            <button type="button" onClick={() => { setShowDoc(false); setDocForm({ nome: '', validade: '', arquivo: '' }); }} className="btn-secondary">Cancelar</button>
+            <button type="submit" disabled={addDocMut.isPending} className="btn-primary">Salvar</button>
           </div>
         </form>
       </Modal>

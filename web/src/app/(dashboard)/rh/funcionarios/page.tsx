@@ -1,15 +1,18 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Table } from '@/components/ui/Table';
+import { PdfUploadButton } from '@/components/ui/PdfUploadButton';
 import { formatDate, getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Funcionario, DocumentoFunc } from '@/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 function isExpiringSoon(validade?: string): boolean {
   if (!validade) return false;
@@ -30,7 +33,7 @@ export default function FuncionariosPage() {
   const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis'>('dados');
   const [form, setForm] = useState({ nome: '', cpf: '', cargo: '', setor: '', telefone: '', email: '', admissao: '', status: 'ATIVO' });
   const [showDocForm, setShowDocForm] = useState(false);
-  const [docForm, setDocForm] = useState({ nome: '', emissao: '', validade: '' });
+  const [docForm, setDocForm] = useState({ nome: '', emissao: '', validade: '', arquivo: '' });
 
   const { data: funcionarios = [], isLoading } = useQuery<Funcionario[]>({
     queryKey: ['funcionarios'],
@@ -60,7 +63,7 @@ export default function FuncionariosPage() {
 
   const addDocMut = useMutation({
     mutationFn: (d: any) => api.post(`/rh/funcionarios/${selected!.id}/documentos`, d),
-    onSuccess: () => { refetchSelected(); toast.success('Documento adicionado!'); setShowDocForm(false); setDocForm({ nome: '', emissao: '', validade: '' }); },
+    onSuccess: () => { refetchSelected(); toast.success('Documento adicionado!'); setShowDocForm(false); setDocForm({ nome: '', emissao: '', validade: '', arquivo: '' }); },
   });
 
   const removeDocMut = useMutation({
@@ -173,14 +176,22 @@ export default function FuncionariosPage() {
                   </div>
 
                   {showDocForm && (
-                    <form onSubmit={(e) => { e.preventDefault(); addDocMut.mutate({ ...docForm, emissao: docForm.emissao || null, validade: docForm.validade || null }); }} className="bg-neutral-50 rounded-lg p-3 mb-3 space-y-2">
-                      <div><label className="label text-xs">Nome do documento *</label><input value={docForm.nome} onChange={e => setDocForm({ ...docForm, nome: e.target.value })} className="input text-sm" required placeholder="Ex: ASO, CNH..." /></div>
+                    <form onSubmit={(e) => { e.preventDefault(); addDocMut.mutate({ ...docForm, emissao: docForm.emissao || null, validade: docForm.validade || null, arquivo: docForm.arquivo || null }); }} className="bg-neutral-50 rounded-lg p-3 mb-3 space-y-2">
+                      <div><label className="label text-xs">Nome do documento *</label><input value={docForm.nome} onChange={e => setDocForm({ ...docForm, nome: e.target.value })} className="input text-sm" required placeholder="Ex: ASO, CNH, Certidão..." /></div>
                       <div className="grid grid-cols-2 gap-2">
                         <div><label className="label text-xs">Emissão</label><input type="date" value={docForm.emissao} onChange={e => setDocForm({ ...docForm, emissao: e.target.value })} className="input text-sm" /></div>
                         <div><label className="label text-xs">Validade</label><input type="date" value={docForm.validade} onChange={e => setDocForm({ ...docForm, validade: e.target.value })} className="input text-sm" /></div>
                       </div>
+                      <div>
+                        <label className="label text-xs">Arquivo PDF</label>
+                        <PdfUploadButton
+                          currentUrl={docForm.arquivo}
+                          onUploaded={(url) => setDocForm({ ...docForm, arquivo: url })}
+                          onClear={() => setDocForm({ ...docForm, arquivo: '' })}
+                        />
+                      </div>
                       <div className="flex gap-2 pt-1">
-                        <button type="button" onClick={() => setShowDocForm(false)} className="btn-secondary text-xs flex-1 justify-center">Cancelar</button>
+                        <button type="button" onClick={() => { setShowDocForm(false); setDocForm({ nome: '', emissao: '', validade: '', arquivo: '' }); }} className="btn-secondary text-xs flex-1 justify-center">Cancelar</button>
                         <button type="submit" disabled={addDocMut.isPending} className="btn-primary text-xs flex-1 justify-center">Salvar</button>
                       </div>
                     </form>
@@ -196,9 +207,14 @@ export default function FuncionariosPage() {
                         return (
                           <div key={d.id} className={`p-3 rounded-lg border text-sm flex items-start justify-between gap-2 ${expired ? 'bg-red-50 border-red-200' : expiring ? 'bg-orange-50 border-orange-200' : 'bg-neutral-50 border-neutral-200'}`}>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {(expired || expiring) && <AlertTriangle size={12} className={expired ? 'text-red-500' : 'text-orange-500'} />}
                                 <p className="font-medium truncate">{d.nome}</p>
+                                {d.arquivo && (
+                                  <a href={`${API_URL}${d.arquivo}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
+                                    <ExternalLink size={11} /> Ver PDF
+                                  </a>
+                                )}
                               </div>
                               {d.emissao && <p className="text-xs text-neutral-400 mt-0.5">Emissão: {formatDate(d.emissao)}</p>}
                               {d.validade && (
