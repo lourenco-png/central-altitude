@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../auth/mail.service';
 
 const INCLUDE = { obra: { select: { id: true, nome: true } }, assinaturas: true };
 
 @Injectable()
 export class RdoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+  ) {}
 
   findAll(obraId?: string) {
     return this.prisma.rDO.findMany({
@@ -37,9 +41,9 @@ export class RdoService {
     });
   }
 
-  update(id: string, data: any) {
+  async update(id: string, data: any) {
     const { moi, mod, equipamentos, tarefas, ocorrencias, ...rest } = data;
-    return this.prisma.rDO.update({
+    const rdo = await this.prisma.rDO.update({
       where: { id },
       data: {
         ...rest,
@@ -51,6 +55,13 @@ export class RdoService {
       },
       include: INCLUDE,
     });
+
+    // Notificar engenheiro quando enviado para assinatura
+    if (data.rdoStatus === 'aguardando_assinatura') {
+      this.notificarAssinatura(id).catch(() => {});
+    }
+
+    return rdo;
   }
 
   assinarEng(id: string, nome: string) {
@@ -65,17 +76,57 @@ export class RdoService {
     });
   }
 
-  enviarParaAssinatura(rdoId: string, destinatarios: { nome: string; email: string }[]) {
-    return Promise.all([
-      this.prisma.rDO.update({
-        where: { id: rdoId },
-        data: { rdoStatus: 'aguardando_assinatura' },
-        include: INCLUDE,
-      }),
-      ...destinatarios.map((d) =>
+  async enviarParaAssinatura(rdoId: string, destinatarios: { nome: string; email: string }[]) {
+    const rdo = await this.prisma.rDO.update({
+      where: { id: rdoId },
+      data: { rdoStatus: 'aguardando_assinatura' },
+      include: { ...INCLUDE, obra: { select: { id: true, nome: true } } },
+    });
+
+    const assinaturas = await Promise.all(
+      destinatarios.map((d) =>
         this.prisma.assinatura.create({ data: { rdoId, nome: d.nome, email: d.email } }),
       ),
-    ]);
+    );
+
+    // Notificar cada destinatário
+    for (const d of destinatarios) {
+      if (d.email) {
+        this.mailService.sendRdoAssinatura(
+          d.email,
+          d.nome,
+          (rdo as any).obra?.nome || '',
+          (rdo as any).numero || '',
+        ).catch(() => {});
+      }
+    }
+
+    return [rdo, ...assinaturas];
+  }
+
+  async notificarAssinatura(rdoId: string) {
+    // Chamado quando rdoStatus é atualizado via PATCH para aguardando_assinatura
+    const rdo = await this.prisma.rDO.findUnique({
+      where: { id: rdoId },
+      include: { obra: { select: { nome: true } }, assinaturas: true },
+    });
+    if (!rdo) return;
+
+    // Busca engenheiro da obra via solicitacoes
+    const sol = await this.prisma.solicitacao.findFirst({
+      where: { obraId: rdo.obraId },
+      include: { engenheiro: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (sol?.engenheiro?.email) {
+      this.mailService.sendRdoAssinatura(
+        sol.engenheiro.email,
+        sol.engenheiro.nome,
+        (rdo as any).obra?.nome || '',
+        (rdo as any).numero || '',
+      ).catch(() => {});
+    }
   }
 
   async assinar(rdoId: string, token: string) {

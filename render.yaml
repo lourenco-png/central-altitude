@@ -20,3 +20,11 @@ services:
         value: "352979691142268"
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
