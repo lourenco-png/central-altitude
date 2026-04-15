@@ -14,3 +14,9 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dgowmqdkk
+      - key: CLOUDINARY_API_KEY
+        value: "352979691142268"
+      - key: CLOUDINARY_API_SECRET
+        sync: false
