@@ -5,7 +5,6 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'Central Altitude',
   description: 'Sistema de gestão Central Altitude',
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
