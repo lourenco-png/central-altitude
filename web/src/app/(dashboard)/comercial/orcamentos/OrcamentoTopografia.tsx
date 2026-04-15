@@ -167,7 +167,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
     setF(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const updateMembro = (id: string, field: 'dias' | 'vdi', val: number) => {
+  const updateMembro = (id: string, field: 'dias' | 'vdi' | 'nome', val: number | string) => {
     setF(prev => ({
       ...prev,
       equipe: prev.equipe.map(m => m.id === id ? { ...m, [field]: val } : m),
@@ -279,7 +279,14 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
                 const sub = m.dias * m.vdi;
                 return (
                   <tr key={m.id} className="border-b border-neutral-100">
-                    <td className="py-1.5 px-3 font-medium text-neutral-700">{m.nome}</td>
+                    <td className="py-1.5 px-3">
+                      <input
+                        type="text"
+                        value={m.nome}
+                        onChange={e => updateMembro(m.id, 'nome', e.target.value)}
+                        className="w-full border border-neutral-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-primary-400 outline-none"
+                      />
+                    </td>
                     <td className="py-1.5 px-3">
                       <input
                         type="number" min={0} step={50}
