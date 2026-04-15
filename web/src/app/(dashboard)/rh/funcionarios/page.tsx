@@ -12,7 +12,12 @@ import { formatDate, getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Funcionario, DocumentoFunc } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+function docUrl(arquivo: string) {
+  // Suporta URL absoluta (Cloudinary) ou relativa legada (/uploads/...)
+  if (!arquivo) return '';
+  if (arquivo.startsWith('http')) return arquivo;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${arquivo}`;
+}
 
 function isExpiringSoon(validade?: string): boolean {
   if (!validade) return false;
@@ -211,7 +216,7 @@ export default function FuncionariosPage() {
                                 {(expired || expiring) && <AlertTriangle size={12} className={expired ? 'text-red-500' : 'text-orange-500'} />}
                                 <p className="font-medium truncate">{d.nome}</p>
                                 {d.arquivo && (
-                                  <a href={`${API_URL}${d.arquivo}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
+                                  <a href={docUrl(d.arquivo!)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
                                     <ExternalLink size={11} /> Ver PDF
                                   </a>
                                 )}

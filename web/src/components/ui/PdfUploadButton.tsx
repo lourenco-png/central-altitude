@@ -31,7 +31,8 @@ export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anex
       const { data } = await api.post('/uploads', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      onUploaded(data.url, data.originalname);
+      // data.url é URL absoluta do Cloudinary (https://res.cloudinary.com/...)
+      onUploaded(data.url, data.filename ?? data.originalname);
       toast.success('Arquivo enviado!');
     } catch {
       toast.error('Erro ao enviar arquivo');

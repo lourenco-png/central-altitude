@@ -10,7 +10,11 @@ import { formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Empresa } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+function docUrl(arquivo: string) {
+  if (!arquivo) return '';
+  if (arquivo.startsWith('http')) return arquivo;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${arquivo}`;
+}
 
 function isExpired(v?: string) { return !!v && new Date(v).getTime() < Date.now(); }
 function isExpiringSoon(v?: string) {
@@ -133,7 +137,7 @@ export default function EmpresaPage() {
                         {(expired || expiring) && <AlertTriangle size={12} className={expired ? 'text-red-500' : 'text-orange-500'} />}
                         <p className="text-sm font-medium truncate">{d.nome}</p>
                         {d.arquivo && (
-                          <a href={`${API_URL}${d.arquivo}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
+                          <a href={docUrl(d.arquivo!)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline">
                             <ExternalLink size={11} /> Ver PDF
                           </a>
                         )}
