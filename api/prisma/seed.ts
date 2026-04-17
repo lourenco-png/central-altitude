@@ -20,6 +20,34 @@ async function main() {
   });
   console.log('Created admin:', admin.email);
 
+  // Usuário Marcos Diego
+  const hashedPasswordMarcos = await bcrypt.hash('a310823@', 10);
+  const marcos = await prisma.user.upsert({
+    where: { email: 'marcos.diego@centralaltitude.com' },
+    update: {},
+    create: {
+      email: 'marcos.diego@centralaltitude.com',
+      password: hashedPasswordMarcos,
+      nome: 'Marcos Diego',
+      role: 'MANAGER' as any,
+    },
+  });
+  console.log('Created user:', marcos.email);
+
+  // Usuário Lourenco
+  const hashedPasswordLourenco = await bcrypt.hash('310823@', 10);
+  const lourenco = await prisma.user.upsert({
+    where: { email: 'lourenco@centralaltitude.com' },
+    update: {},
+    create: {
+      email: 'lourenco@centralaltitude.com',
+      password: hashedPasswordLourenco,
+      nome: 'Lourenco',
+      role: 'MANAGER' as any,
+    },
+  });
+  console.log('Created user:', lourenco.email);
+
   // Empresa
   const empresa = await prisma.empresa.upsert({
     where: { cnpj: '00.000.000/0001-00' },
