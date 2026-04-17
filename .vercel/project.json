@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_U4qEoyO5S1oyzBTI8MTpU1n3QY5g",
+  "orgId": "team_tJSVfpizxPDRBZpc5hqhK7hU",
+  "projectName": "centralaltitudeweb",
+  "settings": {
+    "createdAt": 1776246448503,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": "web",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
