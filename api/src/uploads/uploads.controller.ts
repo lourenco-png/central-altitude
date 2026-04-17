@@ -3,22 +3,29 @@ import {
   UseGuards, BadRequestException, Delete, Param
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
-import { extname } from 'path';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CloudinaryService } from './cloudinary.service';
+
+const UPLOAD_DIR = join(process.cwd(), 'uploads');
+if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
 
 @ApiTags('Uploads')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('uploads')
 export class UploadsController {
-  constructor(private cloudinary: CloudinaryService) {}
-
   @Post()
   @UseInterceptors(FileInterceptor('file', {
-    storage: memoryStorage(),
+    storage: diskStorage({
+      destination: UPLOAD_DIR,
+      filename: (req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+        cb(null, `${unique}${extname(file.originalname)}`);
+      },
+    }),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (req, file, cb) => {
       const allowed = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx/;
@@ -26,20 +33,21 @@ export class UploadsController {
       else cb(new BadRequestException('Tipo de arquivo não permitido'), false);
     },
   }))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    const result = await this.cloudinary.upload(file);
+  uploadFile(@UploadedFile() file: Express.Multer.File) {
+    const base = process.env.API_BASE_URL || 'http://localhost:3001';
     return {
-      url: result.secure_url,
-      publicId: result.public_id,
+      url: `${base}/uploads/${file.filename}`,
+      publicId: file.filename,
       filename: file.originalname,
       size: file.size,
       mimetype: file.mimetype,
     };
   }
 
-  @Delete(':publicId')
-  async deleteFile(@Param('publicId') publicId: string) {
-    await this.cloudinary.delete(publicId);
+  @Delete(':filename')
+  deleteFile(@Param('filename') filename: string) {
+    const filePath = join(UPLOAD_DIR, filename);
+    if (existsSync(filePath)) unlinkSync(filePath);
     return { deleted: true };
   }
 }

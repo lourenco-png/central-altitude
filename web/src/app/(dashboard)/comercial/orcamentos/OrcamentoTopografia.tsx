@@ -100,29 +100,32 @@ function calcular(f: FormState) {
   const custosDir    = f.art + f.aluguelEquip + f.gasolina + f.hospedagem + f.estacas + f.alimentacao;
   const custoTotal   = moDireta + moIndireta + custosDir;
 
-  const ajuste  = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_VISIBILIDADE[f.visibilidade];
-  const margem  = f.margem / 100;
-  const iss     = f.iss / 100;
-  const simples = f.simples / 100;
+  const ajuste = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_VISIBILIDADE[f.visibilidade];
+  const margem = f.margem / 100;
+  const iss    = f.iss / 100;
 
-  const preco = (margem_val: number): { semNF: number; comNF: number } => {
-    // Sem NF: custo coberto pela margem + ISS (ISS incide sobre serviços mesmo sem NF)
-    const denSemNF = 1 - margem_val - iss;
-    const semNF = denSemNF > 0 ? (custoTotal / denSemNF) * (1 + ajuste) : 0;
-    // Com NF (Simples Nacional): ISS já incluso na alíquota do Simples
-    const denComNF = 1 - margem_val - simples;
-    const comNF = denComNF > 0 ? (custoTotal / denComNF) * (1 + ajuste) : 0;
+  // Fórmula fiel à planilha:
+  // precoBase = custoTotal / (1 - margem)
+  // lucro     = precoBase * margem
+  // semNF     = precoBase + ajuste * lucro   (ajuste incide sobre o lucro)
+  // comNF     = semNF / (1 - iss)            (ISS cobrado por fora sobre semNF)
+  const calcPreco = (m: number, aj: number): { semNF: number; comNF: number } => {
+    const denom = 1 - m;
+    if (denom <= 0) return { semNF: 0, comNF: 0 };
+    const precoBase = custoTotal / denom;
+    const lucro     = precoBase * m;
+    const semNF     = precoBase + aj * lucro;
+    const comNF     = (1 - iss) > 0 ? semNF / (1 - iss) : 0;
     return { semNF, comNF };
   };
 
-  const margemMin = Math.max(0, margem - 0.10);
   const margemMax = Math.min(0.95, margem + 0.10);
 
   return {
     moCampo, moEscritorio, moDireta, moIndireta, custosDir, custoTotal, ajuste,
-    min:   preco(margemMin),
-    ideal: preco(margem),
-    max:   preco(margemMax),
+    min:   calcPreco(margem, 0),          // sem ajuste (piso)
+    ideal: calcPreco(margem, ajuste),     // com ajuste
+    max:   calcPreco(margemMax, ajuste),  // margem +10pp + ajuste
   };
 }
 
@@ -421,8 +424,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Parâmetros de Precificação</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NumInput label="Margem (%)" value={f.margem} onChange={v => set('margem', Math.min(95, Math.max(0, v)))} prefix="%" step={1} />
-          <NumInput label="ISS (% — sem NF)" value={f.iss} onChange={v => set('iss', v)} prefix="%" step={0.5} />
-          <NumInput label="Simples Nacional (% — com NF)" value={f.simples} onChange={v => set('simples', v)} prefix="%" step={0.5} />
+          <NumInput label="ISS (%)" value={f.iss} onChange={v => set('iss', v)} prefix="%" step={0.5} />
           <div className="flex flex-col justify-end">
             <div className="text-xs text-neutral-500">Custo Total Base</div>
             <div className="font-bold text-neutral-800 text-base">{formatCurrency(calc.custoTotal)}</div>
@@ -439,7 +441,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Mínimo</div>
             <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
             <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.min?.semNF || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
             <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.min?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {Math.max(0, f.margem - 10).toFixed(0)}%</div>
           </div>
@@ -449,7 +451,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             <div className="text-xs font-semibold text-primary-600 uppercase mb-3">Recomendado</div>
             <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
             <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.ideal?.semNF || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
             <div className="text-2xl font-bold text-primary-700">{formatCurrency(calc.ideal?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {f.margem.toFixed(0)}%</div>
           </div>
@@ -458,7 +460,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Máximo</div>
             <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
             <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.max?.semNF || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF (Simples)</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
             <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.max?.comNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {Math.min(95, f.margem + 10).toFixed(0)}%</div>
           </div>

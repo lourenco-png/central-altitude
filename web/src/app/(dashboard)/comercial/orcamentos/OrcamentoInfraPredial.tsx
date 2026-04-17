@@ -49,8 +49,8 @@ interface FormState {
   // Régua de valores
   complexidade: 'BAIXA' | 'NORMAL' | 'ALTA';
   prazo: 'FOLGADO' | 'NORMAL' | 'APERTADO';
-  conhecimento: 'RUIM' | 'NORMAL' | 'BOA';
-  visibilidade: 'RUIM' | 'NORMAL' | 'BOA';
+  conhecimento: 'BAIXO' | 'NORMAL' | 'ALTO';
+  visibilidade: 'ALTA' | 'NORMAL' | 'BAIXA';
   valorAdotado: number;
   parcelamento: string;
   condicoes: string;
@@ -65,7 +65,11 @@ const DISCIPLINAS_DEFAULT: Disciplina[] = [
   { id: 'macrodrenagem', nome: 'Macrodrenagem', dh: 0, vdi: 3000 },
 ];
 
-const ADJ: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10, FOLGADO: -0.10, APERTADO: 0.10, BOA: -0.10, RUIM: 0.10 };
+// Fiel à planilha Base de Dados
+const ADJ_COMPLEXIDADE: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10 };
+const ADJ_PRAZO: Record<string, number>        = { FOLGADO: -0.10, NORMAL: 0, APERTADO: 0.10 };
+const ADJ_CONHECIMENTO: Record<string, number> = { BAIXO: -0.02, NORMAL: 0, ALTO: 0.02 };   // ±2%
+const ADJ_VISIBILIDADE: Record<string, number> = { ALTA: -0.05, NORMAL: 0, BAIXA: 0.05 };   // ±5%, Alta=mais barato
 
 const DEFAULT: FormState = {
   clienteId: '',
@@ -88,8 +92,8 @@ const DEFAULT: FormState = {
   margemMax: 30,
   complexidade: 'NORMAL',
   prazo: 'NORMAL',
-  conhecimento: 'NORMAL',
-  visibilidade: 'NORMAL',
+  conhecimento: 'NORMAL' as const,
+  visibilidade: 'NORMAL' as const,
   valorAdotado: 0,
   parcelamento: '',
   condicoes: '',
@@ -105,13 +109,19 @@ function calcular(f: FormState) {
   const moIndireta   = moDireta * ((f.pctProspeccao + f.pctOrganizacao) / 100);
   const custosDir    = f.art + f.plotagem + f.gasolina + f.hospedagem + f.alimentacao;
   const subtotal     = moDireta + totalTerceir + moIndireta + f.despesasEscritorio + custosDir;
-  const issTax       = f.iss / 100;
-  const ajuste       = (ADJ[f.complexidade] ?? 0) + (ADJ[f.prazo] ?? 0) + (ADJ[f.conhecimento] ?? 0) + (ADJ[f.visibilidade] ?? 0);
+  const iss          = f.iss / 100;
+  const ajuste       = (ADJ_COMPLEXIDADE[f.complexidade] ?? 0) + (ADJ_PRAZO[f.prazo] ?? 0)
+                     + (ADJ_CONHECIMENTO[f.conhecimento] ?? 0) + (ADJ_VISIBILIDADE[f.visibilidade] ?? 0);
+
+  // Fórmula fiel à planilha (sequencial):
+  // Passo 1: cobrir ISS  → baseComISS = subtotal / (1 - iss)
+  // Passo 2: cobrir margem + ajuste → preco = (baseComISS / (1 - m)) * (1 + ajuste)
+  const baseComISS = iss < 1 ? subtotal / (1 - iss) : subtotal;
 
   const preco = (margem_pct: number) => {
     const m = Math.min(0.95, margem_pct / 100);
-    if (1 - m - issTax <= 0) return 0;
-    return (subtotal / (1 - m - issTax)) * (1 + ajuste);
+    if (1 - m <= 0) return 0;
+    return (baseComISS / (1 - m)) * (1 + ajuste);
   };
 
   const margemIdeal = (f.margemMin + f.margemMax) / 2;
@@ -473,18 +483,18 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
             <label className="block text-xs font-medium text-neutral-600 mb-1">Conhecimento</label>
             <select value={f.conhecimento} onChange={e => set('conhecimento', e.target.value)}
               className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
-              <option value="BOA">Bom (−10%)</option>
+              <option value="ALTO">Alto (−2%)</option>
               <option value="NORMAL">Normal (0%)</option>
-              <option value="RUIM">Ruim (+10%)</option>
+              <option value="BAIXO">Baixo (+2%)</option>
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Visibilidade</label>
             <select value={f.visibilidade} onChange={e => set('visibilidade', e.target.value)}
               className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
-              <option value="BOA">Boa (−10%)</option>
+              <option value="ALTA">Alta (−5%)</option>
               <option value="NORMAL">Normal (0%)</option>
-              <option value="RUIM">Ruim (+10%)</option>
+              <option value="BAIXA">Baixa (+5%)</option>
             </select>
           </div>
         </div>
