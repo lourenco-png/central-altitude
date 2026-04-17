@@ -4,6 +4,30 @@ import { Upload, FileText, X, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
+const ACCEPTED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+];
+
+const ACCEPT_STRING = '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png';
+
+function getFileLabel(url?: string): string {
+  if (!url) return '';
+  try {
+    const parts = url.split('/');
+    const last = parts[parts.length - 1];
+    return decodeURIComponent(last.split('?')[0]);
+  } catch {
+    return 'Arquivo anexado';
+  }
+}
+
 interface PdfUploadButtonProps {
   onUploaded: (url: string, originalname?: string) => void;
   currentUrl?: string;
@@ -11,13 +35,13 @@ interface PdfUploadButtonProps {
   label?: string;
 }
 
-export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anexar PDF' }: PdfUploadButtonProps) {
+export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anexar documento' }: PdfUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const handleFile = async (file: File) => {
-    if (file.type !== 'application/pdf') {
-      toast.error('Apenas arquivos PDF são aceitos');
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast.error('Tipo de arquivo não permitido. Use PDF, Word, Excel ou imagem.');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -31,8 +55,7 @@ export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anex
       const { data } = await api.post('/uploads', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      // data.url é URL absoluta do Cloudinary (https://res.cloudinary.com/...)
-      onUploaded(data.url, data.filename ?? data.originalname);
+      onUploaded(data.url, data.filename ?? data.originalname ?? file.name);
       toast.success('Arquivo enviado!');
     } catch {
       toast.error('Erro ao enviar arquivo');
@@ -45,7 +68,9 @@ export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anex
     return (
       <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
         <FileText size={15} className="text-green-600 flex-shrink-0" />
-        <span className="text-xs text-green-700 font-medium flex-1 truncate">PDF anexado</span>
+        <span className="text-xs text-green-700 font-medium flex-1 truncate">
+          {getFileLabel(currentUrl) || 'Arquivo anexado'}
+        </span>
         {onClear && (
           <button type="button" onClick={onClear} className="p-0.5 rounded hover:bg-green-100">
             <X size={13} className="text-green-600" />
@@ -60,7 +85,7 @@ export function PdfUploadButton({ onUploaded, currentUrl, onClear, label = 'Anex
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
+        accept={ACCEPT_STRING}
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
       />

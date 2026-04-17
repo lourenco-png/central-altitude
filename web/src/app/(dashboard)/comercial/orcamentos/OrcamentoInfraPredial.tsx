@@ -320,22 +320,17 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
               </tr>
             </thead>
             <tbody>
-              {f.disciplinas.map((d, idx) => {
-                const isFixed = idx < DISCIPLINAS_DEFAULT.length;
+              {f.disciplinas.map((d) => {
                 const vp = d.dh * d.vdi;
                 return (
                   <tr key={d.id} className="border-b border-neutral-100">
                     <td className="py-1.5 px-3">
-                      {isFixed ? (
-                        <span className="font-medium text-neutral-700">{d.nome}</span>
-                      ) : (
-                        <input
-                          value={d.nome}
-                          onChange={e => renameDisciplina(d.id, e.target.value)}
-                          className="w-full border border-neutral-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary-400 outline-none"
-                          placeholder="Nome da disciplina"
-                        />
-                      )}
+                      <input
+                        value={d.nome}
+                        onChange={e => renameDisciplina(d.id, e.target.value)}
+                        className="w-full border border-neutral-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-primary-400 outline-none"
+                        placeholder="Nome da disciplina"
+                      />
                     </td>
                     <td className="py-1.5 px-3">
                       <input
@@ -357,12 +352,10 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
                       {vp > 0 ? formatCurrency(vp) : '—'}
                     </td>
                     <td className="py-1.5 px-1">
-                      {!isFixed && (
-                        <button type="button" onClick={() => removeDisciplina(d.id)}
-                          className="p-1 rounded hover:bg-red-50">
-                          <Trash2 size={12} className="text-red-400" />
-                        </button>
-                      )}
+                      <button type="button" onClick={() => removeDisciplina(d.id)}
+                        className="p-1 rounded hover:bg-red-50">
+                        <Trash2 size={12} className="text-red-400" />
+                      </button>
                     </td>
                   </tr>
                 );

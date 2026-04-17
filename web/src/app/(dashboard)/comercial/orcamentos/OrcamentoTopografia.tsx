@@ -102,12 +102,16 @@ function calcular(f: FormState) {
 
   const ajuste  = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_VISIBILIDADE[f.visibilidade];
   const margem  = f.margem / 100;
+  const iss     = f.iss / 100;
   const simples = f.simples / 100;
 
   const preco = (margem_val: number): { semNF: number; comNF: number } => {
-    if (margem_val >= 1) return { semNF: 0, comNF: 0 };
-    const semNF = (custoTotal / (1 - margem_val)) * (1 + ajuste);
-    const comNF = simples < 1 ? semNF / (1 - simples) : 0;
+    // Sem NF: custo coberto pela margem + ISS (ISS incide sobre serviços mesmo sem NF)
+    const denSemNF = 1 - margem_val - iss;
+    const semNF = denSemNF > 0 ? (custoTotal / denSemNF) * (1 + ajuste) : 0;
+    // Com NF (Simples Nacional): ISS já incluso na alíquota do Simples
+    const denComNF = 1 - margem_val - simples;
+    const comNF = denComNF > 0 ? (custoTotal / denComNF) * (1 + ajuste) : 0;
     return { semNF, comNF };
   };
 
@@ -417,8 +421,8 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Parâmetros de Precificação</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NumInput label="Margem (%)" value={f.margem} onChange={v => set('margem', Math.min(95, Math.max(0, v)))} prefix="%" step={1} />
-          <NumInput label="ISS (%)" value={f.iss} onChange={v => set('iss', v)} prefix="%" step={0.5} />
-          <NumInput label="Simples Nacional (%)" value={f.simples} onChange={v => set('simples', v)} prefix="%" step={0.5} />
+          <NumInput label="ISS (% — sem NF)" value={f.iss} onChange={v => set('iss', v)} prefix="%" step={0.5} />
+          <NumInput label="Simples Nacional (% — com NF)" value={f.simples} onChange={v => set('simples', v)} prefix="%" step={0.5} />
           <div className="flex flex-col justify-end">
             <div className="text-xs text-neutral-500">Custo Total Base</div>
             <div className="font-bold text-neutral-800 text-base">{formatCurrency(calc.custoTotal)}</div>

@@ -7,9 +7,11 @@ import { FeriasController } from './ferias.controller';
 import { FeriasService } from './ferias.service';
 import { EmpresaController } from './empresa.controller';
 import { EmpresaService } from './empresa.service';
+import { FaltasController } from './faltas.controller';
+import { FaltasService } from './faltas.service';
 
 @Module({
-  controllers: [FuncionariosController, EpisController, FeriasController, EmpresaController],
-  providers: [FuncionariosService, EpisService, FeriasService, EmpresaService],
+  controllers: [FuncionariosController, EpisController, FeriasController, EmpresaController, FaltasController],
+  providers: [FuncionariosService, EpisService, FeriasService, EmpresaService, FaltasService],
 })
 export class RhModule {}

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle, ExternalLink, Upload, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ChevronRight, Shield, FileText, AlertTriangle, ExternalLink, Upload, Download, UserX } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -10,7 +10,7 @@ import { Table } from '@/components/ui/Table';
 import { PdfUploadButton } from '@/components/ui/PdfUploadButton';
 import { formatDate, getInitials } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import type { Funcionario, DocumentoFunc } from '@/types';
+import type { Funcionario, DocumentoFunc, Falta } from '@/types';
 
 async function exportarHistoricoEPI(func: any, epis: any[]) {
   if (!(window as any).jspdf) {
@@ -37,7 +37,6 @@ async function exportarHistoricoEPI(func: any, epis: any[]) {
     doc.setFontSize(size); doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setTextColor(...c); doc.text(String(t || ''), x, y, { align });
   };
 
-  // Header
   rect(0, 0, W, 20, verde);
   text('ALTITUDE TOPOGRAFIA E ENGENHARIA LTDA', W / 2, 8, 12, true, branco, 'center');
   text('FICHA DE ENTREGA DE EPIs', W / 2, 15, 9, false, verdeClaro, 'center');
@@ -57,7 +56,6 @@ async function exportarHistoricoEPI(func: any, epis: any[]) {
   text('HISTÓRICO DE EPIs', M + 3, y + 5.5, 9, true, branco);
   y += 11;
 
-  // Cabeçalho tabela
   rect(M, y, W - M * 2, 7, verdeClaro);
   text('Descrição', M + 3, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
   text('CA', M + 90, y + 5, 8, true, [27, 94, 32] as [number,number,number]);
@@ -75,7 +73,6 @@ async function exportarHistoricoEPI(func: any, epis: any[]) {
   });
 
   y += 12;
-  // Assinatura
   doc.setDrawColor(...borda); doc.line(M, y, M + 75, y);
   text('Assinatura do Funcionário', M + 37, y + 5, 8, false, sec, 'center');
   doc.line(W - M - 75, y, W - M, y);
@@ -102,18 +99,27 @@ function isExpired(v?: string | null) {
   return !!v && new Date(v).getTime() < Date.now();
 }
 
+const TIPO_FALTA_LABEL: Record<string, string> = {
+  FALTA: 'Falta',
+  ATRASO: 'Atraso',
+  SAIDA_ANTECIPADA: 'Saída Antecipada',
+};
+
 const emptyDoc = { nome: '', emissao: '', validade: '', arquivo: '' };
+const emptyFalta = { data: '', tipo: 'FALTA', justificada: false, motivo: '', observacao: '' };
 
 export default function FuncionariosPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Funcionario | null>(null);
   const [selected, setSelected] = useState<Funcionario | null>(null);
-  // Documentos tab é o padrão quando abre o drawer
-  const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis'>('docs');
+  const [activeTab, setActiveTab] = useState<'dados' | 'docs' | 'epis' | 'faltas'>('docs');
   const [form, setForm] = useState({ nome: '', cpf: '', cargo: '', setor: '', telefone: '', email: '', admissao: '', status: 'ATIVO' });
   const [docForm, setDocForm] = useState(emptyDoc);
   const [savingDoc, setSavingDoc] = useState(false);
+  const [faltaForm, setFaltaForm] = useState<any>(emptyFalta);
+  const [editingFalta, setEditingFalta] = useState<Falta | null>(null);
+  const [showFaltaModal, setShowFaltaModal] = useState(false);
 
   const { data: funcionarios = [], isLoading } = useQuery<Funcionario[]>({
     queryKey: ['funcionarios'],
@@ -158,6 +164,26 @@ export default function FuncionariosPage() {
     onSuccess: () => { refetchSelected(); toast.success('Removido'); },
   });
 
+  const addFaltaMut = useMutation({
+    mutationFn: (d: any) => editingFalta
+      ? api.patch(`/rh/faltas/${editingFalta.id}`, d)
+      : api.post('/rh/faltas', { ...d, funcionarioId: selected!.id }),
+    onSuccess: () => {
+      refetchSelected();
+      qc.invalidateQueries({ queryKey: ['faltas'] });
+      toast.success(editingFalta ? 'Falta atualizada!' : 'Falta registrada!');
+      setShowFaltaModal(false);
+      setEditingFalta(null);
+      setFaltaForm(emptyFalta);
+    },
+    onError: () => toast.error('Erro ao salvar falta'),
+  });
+
+  const removeFaltaMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/rh/faltas/${id}`),
+    onSuccess: () => { refetchSelected(); toast.success('Removido'); },
+  });
+
   const openEdit = (f: Funcionario) => {
     setEditing(f);
     setForm({ nome: f.nome, cpf: f.cpf, cargo: f.cargo, setor: f.setor || '', telefone: f.telefone || '', email: f.email || '', admissao: f.admissao.split('T')[0], status: f.status });
@@ -182,9 +208,35 @@ export default function FuncionariosPage() {
     });
   };
 
+  const handleSaveFalta = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!faltaForm.data) { toast.error('Informe a data'); return; }
+    addFaltaMut.mutate({
+      data: new Date(faltaForm.data).toISOString(),
+      tipo: faltaForm.tipo,
+      justificada: faltaForm.justificada,
+      motivo: faltaForm.motivo || null,
+      observacao: faltaForm.observacao || null,
+    });
+  };
+
+  const openEditFalta = (f: Falta) => {
+    setEditingFalta(f);
+    setFaltaForm({
+      data: f.data.split('T')[0],
+      tipo: f.tipo,
+      justificada: f.justificada,
+      motivo: f.motivo || '',
+      observacao: f.observacao || '',
+    });
+    setShowFaltaModal(true);
+  };
+
   const docs: DocumentoFunc[] = selectedFull?.documentos ?? selected?.documentos ?? [];
   const epis = selectedFull?.epis ?? selected?.epis ?? [];
+  const faltas: Falta[] = selectedFull?.faltas ?? selected?.faltas ?? [];
   const docsAlert = docs.filter(d => isExpiringSoon(d.validade) || isExpired(d.validade)).length;
+  const faltasNaoJust = faltas.filter(f => !f.justificada).length;
 
   const openDrawer = (f: Funcionario) => {
     setSelected(f);
@@ -203,11 +255,10 @@ export default function FuncionariosPage() {
         }
       />
 
-      {/* Hint quando nenhum funcionário selecionado */}
       {!selected && funcionarios.length > 0 && (
         <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl text-sm text-primary-700 flex items-center gap-2">
           <FileText size={15} />
-          Clique em um funcionário para gerenciar documentos e EPIs.
+          Clique em um funcionário para gerenciar documentos, EPIs e faltas.
         </div>
       )}
 
@@ -262,13 +313,16 @@ export default function FuncionariosPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b">
-              {(['docs', 'dados', 'epis'] as const).map((tab) => (
+            <div className="flex border-b overflow-x-auto">
+              {(['docs', 'dados', 'epis', 'faltas'] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2.5 text-sm font-medium relative transition-colors ${activeTab === tab ? 'border-b-2 border-primary-700 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
-                  {tab === 'dados' ? 'Dados' : tab === 'docs' ? 'Documentos' : 'EPIs'}
+                  className={`flex-1 py-2.5 text-sm font-medium relative transition-colors whitespace-nowrap px-2 ${activeTab === tab ? 'border-b-2 border-primary-700 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'}`}>
+                  {tab === 'dados' ? 'Dados' : tab === 'docs' ? 'Documentos' : tab === 'epis' ? 'EPIs' : 'Faltas'}
                   {tab === 'docs' && docsAlert > 0 && (
-                    <span className="absolute top-1.5 right-3 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center">{docsAlert}</span>
+                    <span className="absolute top-1.5 right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center">{docsAlert}</span>
+                  )}
+                  {tab === 'faltas' && faltasNaoJust > 0 && (
+                    <span className="absolute top-1.5 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">{faltasNaoJust}</span>
                   )}
                 </button>
               ))}
@@ -280,8 +334,6 @@ export default function FuncionariosPage() {
               {/* ── Documentos ── */}
               {activeTab === 'docs' && (
                 <div className="p-4 space-y-4">
-
-                  {/* Formulário de novo documento — SEMPRE VISÍVEL */}
                   <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
                     <p className="text-sm font-semibold text-primary-800 mb-3 flex items-center gap-1.5">
                       <Upload size={14} /> Adicionar Documento
@@ -307,12 +359,12 @@ export default function FuncionariosPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="label text-xs">Arquivo PDF</label>
+                        <label className="label text-xs">Arquivo (PDF, Word, Excel, Imagem)</label>
                         <PdfUploadButton
                           currentUrl={docForm.arquivo}
                           onUploaded={(url: string) => setDocForm(prev => ({ ...prev, arquivo: url }))}
                           onClear={() => setDocForm(prev => ({ ...prev, arquivo: '' }))}
-                          label="Selecionar PDF"
+                          label="Selecionar arquivo"
                         />
                       </div>
                       <button
@@ -325,7 +377,6 @@ export default function FuncionariosPage() {
                     </form>
                   </div>
 
-                  {/* Lista de documentos */}
                   {docs.length === 0 ? (
                     <div className="text-center py-4">
                       <FileText size={28} className="text-neutral-300 mx-auto mb-2" />
@@ -348,7 +399,7 @@ export default function FuncionariosPage() {
                                 {d.arquivo && (
                                   <a href={docUrl(d.arquivo)} target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-0.5 text-[11px] text-primary-600 hover:underline font-medium">
-                                    <ExternalLink size={11} /> Ver PDF
+                                    <ExternalLink size={11} /> Ver arquivo
                                   </a>
                                 )}
                               </div>
@@ -423,6 +474,71 @@ export default function FuncionariosPage() {
                 </div>
               )}
 
+              {/* ── Faltas ── */}
+              {activeTab === 'faltas' && (
+                <div className="p-4 space-y-4">
+                  {/* Resumo */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-neutral-800">{faltas.length}</p>
+                      <p className="text-xs text-neutral-500">Total</p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-red-700">{faltasNaoJust}</p>
+                      <p className="text-xs text-red-500">Não justif.</p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-green-700">{faltas.filter(f => f.justificada).length}</p>
+                      <p className="text-xs text-green-500">Justif.</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => { setEditingFalta(null); setFaltaForm(emptyFalta); setShowFaltaModal(true); }}
+                    className="btn-primary w-full justify-center text-sm"
+                  >
+                    <Plus size={14} /> Registrar Falta/Atraso
+                  </button>
+
+                  {faltas.length === 0 ? (
+                    <div className="text-center py-6">
+                      <UserX size={28} className="text-neutral-300 mx-auto mb-2" />
+                      <p className="text-sm text-neutral-400">Nenhuma ocorrência registrada.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {faltas.map((f) => (
+                        <div key={f.id} className={`p-3 rounded-lg border text-sm ${!f.justificada ? 'bg-red-50 border-red-200' : 'bg-neutral-50 border-neutral-200'}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${f.tipo === 'FALTA' ? 'bg-red-100 text-red-700' : f.tipo === 'ATRASO' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                  {TIPO_FALTA_LABEL[f.tipo]}
+                                </span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${f.justificada ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                  {f.justificada ? 'Justificada' : 'Não justificada'}
+                                </span>
+                                <span className="text-xs text-neutral-500">{formatDate(f.data)}</span>
+                              </div>
+                              {f.motivo && <p className="text-xs text-neutral-600 mt-1">Motivo: {f.motivo}</p>}
+                              {f.observacao && <p className="text-xs text-neutral-400 mt-0.5">{f.observacao}</p>}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <button onClick={() => openEditFalta(f)} className="p-1 rounded hover:bg-neutral-200">
+                                <Edit2 size={12} className="text-neutral-500" />
+                              </button>
+                              <button onClick={() => { if (confirm('Remover?')) removeFaltaMut.mutate(f.id); }} className="p-1 rounded hover:bg-red-100">
+                                <Trash2 size={12} className="text-red-400" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -451,6 +567,53 @@ export default function FuncionariosPage() {
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={closeModal} className="btn-secondary">Cancelar</button>
             <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="btn-primary">Salvar</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal registrar/editar falta */}
+      <Modal open={showFaltaModal} onClose={() => { setShowFaltaModal(false); setEditingFalta(null); setFaltaForm(emptyFalta); }} title={editingFalta ? 'Editar Ocorrência' : 'Registrar Falta/Atraso'} size="md">
+        <form onSubmit={handleSaveFalta} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Data *</label>
+              <input type="date" value={faltaForm.data} onChange={e => setFaltaForm({ ...faltaForm, data: e.target.value })} className="input" required />
+            </div>
+            <div>
+              <label className="label">Tipo</label>
+              <select value={faltaForm.tipo} onChange={e => setFaltaForm({ ...faltaForm, tipo: e.target.value })} className="input">
+                <option value="FALTA">Falta</option>
+                <option value="ATRASO">Atraso</option>
+                <option value="SAIDA_ANTECIPADA">Saída Antecipada</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">Justificada?</label>
+            <div className="flex gap-4 mt-1">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="justificada" checked={!faltaForm.justificada} onChange={() => setFaltaForm({ ...faltaForm, justificada: false })} />
+                Não justificada
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="justificada" checked={faltaForm.justificada} onChange={() => setFaltaForm({ ...faltaForm, justificada: true })} />
+                Justificada
+              </label>
+            </div>
+          </div>
+          <div>
+            <label className="label">Motivo</label>
+            <input value={faltaForm.motivo} onChange={e => setFaltaForm({ ...faltaForm, motivo: e.target.value })} className="input" placeholder="Ex: Atestado médico, emergência..." />
+          </div>
+          <div>
+            <label className="label">Observação</label>
+            <textarea value={faltaForm.observacao} onChange={e => setFaltaForm({ ...faltaForm, observacao: e.target.value })} className="input resize-none" rows={2} placeholder="Observações adicionais..." />
+          </div>
+          <div className="flex gap-3 justify-end pt-2">
+            <button type="button" onClick={() => { setShowFaltaModal(false); setEditingFalta(null); setFaltaForm(emptyFalta); }} className="btn-secondary">Cancelar</button>
+            <button type="submit" disabled={addFaltaMut.isPending} className="btn-primary">
+              {addFaltaMut.isPending ? 'Salvando...' : 'Salvar'}
+            </button>
           </div>
         </form>
       </Modal>

@@ -189,6 +189,7 @@ model Funcionario {
   documentos  DocumentoFunc[]
   epis        EPI[]
   ferias      Ferias[]
+  faltas      Falta[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -246,6 +247,27 @@ enum FeriasStatus {
   PENDENTE
   APROVADO
   REJEITADO
+}
+
+model Falta {
+  id            String      @id @default(cuid())
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  data          DateTime
+  tipo          TipoFalta   @default(FALTA)
+  justificada   Boolean     @default(false)
+  motivo        String?
+  observacao    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("faltas")
+}
+
+enum TipoFalta {
+  FALTA
+  ATRASO
+  SAIDA_ANTECIPADA
 }
 
 model Empresa {

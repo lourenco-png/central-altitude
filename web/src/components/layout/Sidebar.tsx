@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Triangle, Users, DollarSign, Settings,
   ChevronDown, ChevronRight, Calendar, FileText, Clipboard,
   UserCheck, Shield, Umbrella, Building2, ShoppingCart,
-  FileSignature, File, Kanban, UserCircle
+  FileSignature, File, Kanban, UserCircle, UserX
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/ui/Logo';
@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
     icon: <Users size={18} />,
     children: [
       { label: 'Funcionários', href: '/rh/funcionarios', icon: <UserCircle size={16} /> },
+      { label: 'Faltas', href: '/rh/faltas', icon: <UserX size={16} /> },
       { label: 'EPIs', href: '/rh/epis', icon: <Shield size={16} /> },
       { label: 'Férias', href: '/rh/ferias', icon: <Umbrella size={16} /> },
       { label: 'Empresa', href: '/rh/empresa', icon: <Building2 size={16} /> },

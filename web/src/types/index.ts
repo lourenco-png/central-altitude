@@ -75,6 +75,19 @@ export interface Funcionario {
   documentos?: DocumentoFunc[];
   epis?: EPI[];
   ferias?: Ferias[];
+  faltas?: Falta[];
+}
+
+export interface Falta {
+  id: string;
+  funcionarioId: string;
+  funcionario?: { id: string; nome: string; cargo: string; setor?: string };
+  data: string;
+  tipo: 'FALTA' | 'ATRASO' | 'SAIDA_ANTECIPADA';
+  justificada: boolean;
+  motivo?: string;
+  observacao?: string;
+  createdAt: string;
 }
 
 export interface DocumentoFunc {

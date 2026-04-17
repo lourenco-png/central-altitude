@@ -22,7 +22,12 @@ export class FuncionariosService {
   findOne(id: string) {
     return this.prisma.funcionario.findUnique({
       where: { id },
-      include: { documentos: true, epis: true, ferias: true },
+      include: {
+        documentos: { orderBy: { createdAt: 'desc' } },
+        epis: true,
+        ferias: { orderBy: { inicio: 'desc' } },
+        faltas: { orderBy: { data: 'desc' } },
+      },
     });
   }
 
