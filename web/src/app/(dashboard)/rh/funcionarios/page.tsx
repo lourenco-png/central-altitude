@@ -255,10 +255,10 @@ export default function FuncionariosPage() {
         }
       />
 
-      {!selected && funcionarios.length > 0 && (
+      {!selected && (
         <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl text-sm text-primary-700 flex items-center gap-2">
-          <FileText size={15} />
-          Clique em um funcionário para gerenciar documentos, EPIs e faltas.
+          <Upload size={15} />
+          Clique em um funcionário para <strong className="ml-1">upload de documentos</strong>, gerenciar EPIs e registrar faltas.
         </div>
       )}
 
@@ -280,6 +280,17 @@ export default function FuncionariosPage() {
             { key: 'setor', label: 'Setor', render: (f) => f.setor || '-' },
             { key: 'admissao', label: 'Admissão', render: (f) => formatDate(f.admissao) },
             { key: 'status', label: 'Status', render: (f) => <StatusBadge status={f.status} /> },
+            {
+              key: 'documentos', label: 'Docs', className: 'w-20 text-center',
+              render: (f) => {
+                const count = (f as any).documentos?.length ?? 0;
+                return (
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${count > 0 ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-400'}`}>
+                    <FileText size={11} />{count}
+                  </span>
+                );
+              }
+            },
             {
               key: 'actions', label: '', className: 'w-24',
               render: (f) => (

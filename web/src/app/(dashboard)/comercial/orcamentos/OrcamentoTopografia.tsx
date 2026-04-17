@@ -39,10 +39,12 @@ interface FormState {
   hospedagem: number;
   estacas: number;
   alimentacao: number;
-  // Régua de Valores
+  // Régua de Valores (5 fatores — fiel à planilha Base de Dados)
   complexidade: 'BAIXA' | 'NORMAL' | 'ALTA';
   prazo: 'FOLGADO' | 'NORMAL' | 'APERTADO';
-  visibilidade: 'RUIM' | 'NORMAL' | 'BOA';
+  risco: 'BAIXO' | 'NORMAL' | 'ALTO';
+  visibilidade: 'ALTA' | 'NORMAL' | 'BAIXA';
+  condicoesPgto: 'BOA' | 'NORMAL' | 'RUIM';
   // Precificação
   margem: number;   // %
   iss: number;      // %
@@ -77,7 +79,9 @@ const DEFAULT: FormState = {
   alimentacao: 0,
   complexidade: 'NORMAL',
   prazo: 'NORMAL',
+  risco: 'NORMAL',
   visibilidade: 'NORMAL',
+  condicoesPgto: 'NORMAL',
   margem: 30,
   iss: 10,
   simples: 37,
@@ -86,10 +90,12 @@ const DEFAULT: FormState = {
   status: 'RASCUNHO',
 };
 
-// ── Adjustment maps ──────────────────────────────────────────
+// ── Adjustment maps (fiel à planilha Base de Dados) ─────────
 const ADJ_COMPLEXIDADE: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10 };
 const ADJ_PRAZO: Record<string, number>        = { FOLGADO: -0.10, NORMAL: 0, APERTADO: 0.10 };
-const ADJ_VISIBILIDADE: Record<string, number> = { BOA: -0.10, NORMAL: 0, RUIM: 0.10 };
+const ADJ_RISCO: Record<string, number>        = { BAIXO: 0, NORMAL: 0.02, ALTO: 0.30 };
+const ADJ_VISIBILIDADE: Record<string, number> = { ALTA: -0.05, NORMAL: 0, BAIXA: 0.05 };
+const ADJ_CONDICOES: Record<string, number>    = { BOA: -0.02, NORMAL: 0, RUIM: 0.02 };
 
 // ── Helpers ──────────────────────────────────────────────────
 function calcular(f: FormState) {
@@ -100,32 +106,46 @@ function calcular(f: FormState) {
   const custosDir    = f.art + f.aluguelEquip + f.gasolina + f.hospedagem + f.estacas + f.alimentacao;
   const custoTotal   = moDireta + moIndireta + custosDir;
 
-  const ajuste = ADJ_COMPLEXIDADE[f.complexidade] + ADJ_PRAZO[f.prazo] + ADJ_VISIBILIDADE[f.visibilidade];
-  const margem = f.margem / 100;
-  const iss    = f.iss / 100;
+  const ajuste = (ADJ_COMPLEXIDADE[f.complexidade] ?? 0)
+               + (ADJ_PRAZO[f.prazo] ?? 0)
+               + (ADJ_RISCO[f.risco] ?? 0)
+               + (ADJ_VISIBILIDADE[f.visibilidade] ?? 0)
+               + (ADJ_CONDICOES[f.condicoesPgto] ?? 0);
 
-  // Fórmula fiel à planilha:
-  // precoBase = custoTotal / (1 - margem)
-  // lucro     = precoBase * margem
-  // semNF     = precoBase + ajuste * lucro   (ajuste incide sobre o lucro)
-  // comNF     = semNF / (1 - iss)            (ISS cobrado por fora sobre semNF)
-  const calcPreco = (m: number, aj: number): { semNF: number; comNF: number } => {
-    const denom = 1 - m;
-    if (denom <= 0) return { semNF: 0, comNF: 0 };
-    const precoBase = custoTotal / denom;
-    const lucro     = precoBase * m;
-    const semNF     = precoBase + aj * lucro;
-    const comNF     = (1 - iss) > 0 ? semNF / (1 - iss) : 0;
-    return { semNF, comNF };
-  };
+  const margem     = f.margem / 100;
+  const iss        = f.iss / 100;
+  const totalTaxas = (f.iss + f.simples) / 100;
 
-  const margemMax = Math.min(0.95, margem + 0.10);
+  const denom = 1 - margem;
+  if (denom <= 0) {
+    const z = { semNF: 0, comNF: 0 };
+    return { moCampo, moEscritorio, moDireta, moIndireta, custosDir, custoTotal, ajuste, min: z, ideal: z, max: z };
+  }
+
+  // Fórmula fiel à planilha TOPOGRAFIA:
+  // precoBase   = custoTotal / (1 - margem)
+  // lucro       = precoBase * margem
+  // semNF_ideal = precoBase + ajuste * lucro   (H13/H26)
+  // semNF_min   = ajuste > 0 ? precoBase : semNF_ideal   (H25)
+  // semNF_max   = semNF_ideal * 1.1 / (1 - totalTaxas)   (H27)
+  // comNF_min   = semNF_min / (1 - totalTaxas)            (H29)
+  // comNF_ideal = semNF_ideal / (1 - iss)                 (H30)
+  // comNF_max   = comNF_ideal * 1.1 / (1 - totalTaxas)   (H31)
+  const precoBase  = custoTotal / denom;
+  const lucro      = precoBase * margem;
+  const semNFIdeal = precoBase + ajuste * lucro;
+  const semNFMin   = ajuste > 0 ? precoBase : semNFIdeal;
+  const semNFMax   = totalTaxas < 1 ? (semNFIdeal * 1.1) / (1 - totalTaxas) : 0;
+
+  const comNFIdeal = iss < 1 ? semNFIdeal / (1 - iss) : semNFIdeal;
+  const comNFMin   = totalTaxas < 1 ? semNFMin / (1 - totalTaxas) : semNFMin;
+  const comNFMax   = totalTaxas < 1 ? (comNFIdeal * 1.1) / (1 - totalTaxas) : 0;
 
   return {
     moCampo, moEscritorio, moDireta, moIndireta, custosDir, custoTotal, ajuste,
-    min:   calcPreco(margem, 0),          // sem ajuste (piso)
-    ideal: calcPreco(margem, ajuste),     // com ajuste
-    max:   calcPreco(margemMax, ajuste),  // margem +10pp + ajuste
+    min:   { semNF: semNFMin,   comNF: comNFMin   },
+    ideal: { semNF: semNFIdeal, comNF: comNFIdeal },
+    max:   { semNF: semNFMax,   comNF: comNFMax   },
   };
 }
 
@@ -156,11 +176,13 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
   const [f, setF] = useState<FormState>(() => {
     if (orcamento?.dadosEspecificos) {
       const d = orcamento.dadosEspecificos as any;
-      // Migrate legacy risco → visibilidade
-      if (d.risco && !d.visibilidade) {
-        const map: Record<string, string> = { BAIXO: 'BOA', NORMAL: 'NORMAL', ALTO: 'RUIM' };
-        d.visibilidade = map[d.risco] ?? 'NORMAL';
-      }
+      // Migrate legacy visibilidade keys BOA/RUIM → ALTA/BAIXA
+      if (d.visibilidade === 'BOA') d.visibilidade = 'ALTA';
+      if (d.visibilidade === 'RUIM') d.visibilidade = 'BAIXA';
+      // Migrate legacy risco field (old field) → new risco field
+      if (!d.risco) d.risco = 'NORMAL';
+      // Ensure new fields have defaults
+      if (!d.condicoesPgto) d.condicoesPgto = 'NORMAL';
       // Migrate legacy qtdDiarias/valorDiaria → equipe
       if (!d.equipe) {
         d.equipe = EQUIPE_DEFAULT.map(m => ({ ...m, dias: 0 }));
@@ -374,14 +396,11 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
       {/* Régua de Valores */}
       <section className="card p-5 space-y-4">
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Régua de Valores</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Complexidade</label>
-            <select
-              value={f.complexidade}
-              onChange={e => set('complexidade', e.target.value)}
-              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
-            >
+            <select value={f.complexidade} onChange={e => set('complexidade', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
               <option value="BAIXA">Baixa (−10%)</option>
               <option value="NORMAL">Normal (0%)</option>
               <option value="ALTA">Alta (+10%)</option>
@@ -389,34 +408,44 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Prazo</label>
-            <select
-              value={f.prazo}
-              onChange={e => set('prazo', e.target.value)}
-              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
-            >
+            <select value={f.prazo} onChange={e => set('prazo', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
               <option value="FOLGADO">Folgado (−10%)</option>
               <option value="NORMAL">Normal (0%)</option>
               <option value="APERTADO">Apertado (+10%)</option>
             </select>
           </div>
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Risco</label>
+            <select value={f.risco} onChange={e => set('risco', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BAIXO">Baixo (0%)</option>
+              <option value="NORMAL">Normal (+2%)</option>
+              <option value="ALTO">Alto (+30%)</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Visibilidade</label>
-            <select
-              value={f.visibilidade}
-              onChange={e => set('visibilidade', e.target.value)}
-              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
-            >
-              <option value="BOA">Boa (−10%)</option>
+            <select value={f.visibilidade} onChange={e => set('visibilidade', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="ALTA">Alta (−5%)</option>
               <option value="NORMAL">Normal (0%)</option>
-              <option value="RUIM">Ruim (+10%)</option>
+              <option value="BAIXA">Baixa (+5%)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Condições de Pagamento</label>
+            <select value={f.condicoesPgto} onChange={e => set('condicoesPgto', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BOA">Boa (−2%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="RUIM">Ruim (+2%)</option>
             </select>
           </div>
         </div>
-        {calc.ajuste !== 0 && (
-          <p className="text-xs text-neutral-500">
-            Ajuste total: <strong>{calc.ajuste > 0 ? '+' : ''}{(calc.ajuste * 100).toFixed(0)}%</strong>
-          </p>
-        )}
+        <p className="text-xs text-neutral-500">
+          Ajuste total: <strong>{calc.ajuste >= 0 ? '+' : ''}{(calc.ajuste * 100).toFixed(0)}%</strong>
+        </p>
       </section>
 
       {/* Parâmetros de Precificação */}
@@ -425,11 +454,13 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NumInput label="Margem (%)" value={f.margem} onChange={v => set('margem', Math.min(95, Math.max(0, v)))} prefix="%" step={1} />
           <NumInput label="ISS (%)" value={f.iss} onChange={v => set('iss', v)} prefix="%" step={0.5} />
+          <NumInput label="Simples Nacional (%)" value={f.simples} onChange={v => set('simples', v)} prefix="%" step={0.5} />
           <div className="flex flex-col justify-end">
             <div className="text-xs text-neutral-500">Custo Total Base</div>
             <div className="font-bold text-neutral-800 text-base">{formatCurrency(calc.custoTotal)}</div>
           </div>
         </div>
+        <p className="text-xs text-neutral-400">Total de impostos (ISS + Simples): {(f.iss + f.simples).toFixed(1)}%</p>
       </section>
 
       {/* Régua de Preços */}
@@ -462,7 +493,7 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
             <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.max?.semNF || 0)}</div>
             <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
             <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.max?.comNF || 0)}</div>
-            <div className="text-xs text-neutral-400 mt-1">margem {Math.min(95, f.margem + 10).toFixed(0)}%</div>
+            <div className="text-xs text-neutral-400 mt-1">ideal × 1,1 / (1 − impostos)</div>
           </div>
         </div>
       </section>

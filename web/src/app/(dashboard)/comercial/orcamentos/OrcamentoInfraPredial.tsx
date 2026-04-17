@@ -46,11 +46,12 @@ interface FormState {
   iss: number;
   margemMin: number;
   margemMax: number;
-  // Régua de valores
+  // Régua de valores (5 fatores — fiel à planilha Base de Dados)
   complexidade: 'BAIXA' | 'NORMAL' | 'ALTA';
   prazo: 'FOLGADO' | 'NORMAL' | 'APERTADO';
   conhecimento: 'BAIXO' | 'NORMAL' | 'ALTO';
   visibilidade: 'ALTA' | 'NORMAL' | 'BAIXA';
+  condicoesPgto: 'BOA' | 'NORMAL' | 'RUIM';
   valorAdotado: number;
   parcelamento: string;
   condicoes: string;
@@ -68,8 +69,9 @@ const DISCIPLINAS_DEFAULT: Disciplina[] = [
 // Fiel à planilha Base de Dados
 const ADJ_COMPLEXIDADE: Record<string, number> = { BAIXA: -0.10, NORMAL: 0, ALTA: 0.10 };
 const ADJ_PRAZO: Record<string, number>        = { FOLGADO: -0.10, NORMAL: 0, APERTADO: 0.10 };
-const ADJ_CONHECIMENTO: Record<string, number> = { BAIXO: -0.02, NORMAL: 0, ALTO: 0.02 };   // ±2%
-const ADJ_VISIBILIDADE: Record<string, number> = { ALTA: -0.05, NORMAL: 0, BAIXA: 0.05 };   // ±5%, Alta=mais barato
+const ADJ_CONHECIMENTO: Record<string, number> = { BAIXO: -0.02, NORMAL: 0, ALTO: 0.02 };
+const ADJ_VISIBILIDADE: Record<string, number> = { ALTA: -0.05, NORMAL: 0, BAIXA: 0.05 };
+const ADJ_CONDICOES: Record<string, number>    = { BOA: -0.02, NORMAL: 0, RUIM: 0.02 };
 
 const DEFAULT: FormState = {
   clienteId: '',
@@ -94,6 +96,7 @@ const DEFAULT: FormState = {
   prazo: 'NORMAL',
   conhecimento: 'NORMAL' as const,
   visibilidade: 'NORMAL' as const,
+  condicoesPgto: 'NORMAL' as const,
   valorAdotado: 0,
   parcelamento: '',
   condicoes: '',
@@ -111,26 +114,27 @@ function calcular(f: FormState) {
   const subtotal     = moDireta + totalTerceir + moIndireta + f.despesasEscritorio + custosDir;
   const iss          = f.iss / 100;
   const ajuste       = (ADJ_COMPLEXIDADE[f.complexidade] ?? 0) + (ADJ_PRAZO[f.prazo] ?? 0)
-                     + (ADJ_CONHECIMENTO[f.conhecimento] ?? 0) + (ADJ_VISIBILIDADE[f.visibilidade] ?? 0);
+                     + (ADJ_CONHECIMENTO[f.conhecimento] ?? 0) + (ADJ_VISIBILIDADE[f.visibilidade] ?? 0)
+                     + (ADJ_CONDICOES[f.condicoesPgto] ?? 0);
 
-  // Fórmula fiel à planilha (sequencial):
-  // Passo 1: cobrir ISS  → baseComISS = subtotal / (1 - iss)
-  // Passo 2: cobrir margem + ajuste → preco = (baseComISS / (1 - m)) * (1 + ajuste)
-  const baseComISS = iss < 1 ? subtotal / (1 - iss) : subtotal;
-
+  // Fórmula fiel à planilha INFRA (M15:M20):
+  // semISS = (subtotal / (1 - margem)) * (1 + ajuste)   → margem aplicada primeiro, depois ajuste
+  // comISS = semISS / (1 - iss)                          → ISS aplicado por fora
   const preco = (margem_pct: number) => {
     const m = Math.min(0.95, margem_pct / 100);
-    if (1 - m <= 0) return 0;
-    return (baseComISS / (1 - m)) * (1 + ajuste);
+    if (1 - m <= 0) return { semISS: 0, comISS: 0 };
+    const semISS = (subtotal / (1 - m)) * (1 + ajuste);
+    const comISS = iss < 1 ? semISS / (1 - iss) : semISS;
+    return { semISS, comISS };
   };
 
   const margemIdeal = (f.margemMin + f.margemMax) / 2;
 
   return {
     moDireta, totalTerceir, moIndireta, custosDir, subtotal, ajuste,
-    precoMin:   preco(f.margemMin),
-    precoIdeal: preco(margemIdeal),
-    precoMax:   preco(f.margemMax),
+    min:   preco(f.margemMin),
+    ideal: preco(margemIdeal),
+    max:   preco(f.margemMax),
   };
 }
 
@@ -224,7 +228,7 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
 
   // ── Save ────────────────────────────────────────────────
   const buildPayload = (status: string) => {
-    const total = f.valorAdotado || calc.precoIdeal;
+    const total = f.valorAdotado || calc.ideal.comISS;
     const itens = f.disciplinas
       .filter(d => d.dh > 0 && d.nome)
       .map(d => ({ descricao: d.nome, quantidade: d.dh, unitario: d.vdi }));
@@ -460,7 +464,7 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
       {/* Régua de Valores */}
       <section className="card p-5 space-y-4">
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Régua de Valores</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">Complexidade</label>
             <select value={f.complexidade} onChange={e => set('complexidade', e.target.value)}
@@ -497,12 +501,19 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
               <option value="BAIXA">Baixa (+5%)</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Condições de Pagamento</label>
+            <select value={f.condicoesPgto} onChange={e => set('condicoesPgto', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none">
+              <option value="BOA">Boa (−2%)</option>
+              <option value="NORMAL">Normal (0%)</option>
+              <option value="RUIM">Ruim (+2%)</option>
+            </select>
+          </div>
         </div>
-        {calc.ajuste !== 0 && (
-          <p className="text-xs text-neutral-500">
-            Ajuste total: <strong>{calc.ajuste > 0 ? '+' : ''}{(calc.ajuste * 100).toFixed(0)}%</strong>
-          </p>
-        )}
+        <p className="text-xs text-neutral-500">
+          Ajuste total: <strong>{calc.ajuste >= 0 ? '+' : ''}{(calc.ajuste * 100).toFixed(0)}%</strong>
+        </p>
       </section>
 
       {/* Precificação */}
@@ -524,19 +535,28 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
         <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Régua de Preços</h3>
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-xl border border-neutral-200 p-4 text-center">
-            <div className="text-xs font-semibold text-neutral-500 uppercase mb-2">Mínimo</div>
-            <div className="text-2xl font-bold text-neutral-800">{formatCurrency(calc.precoMin)}</div>
+            <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Mínimo</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.min.semISS)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
+            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.min.comISS)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {f.margemMin}%</div>
           </div>
           <div className="rounded-xl border-2 border-primary-400 bg-primary-50 p-4 text-center relative">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">Ideal</div>
-            <div className="text-xs font-semibold text-primary-600 uppercase mb-2">Recomendado</div>
-            <div className="text-2xl font-bold text-primary-700">{formatCurrency(calc.precoIdeal)}</div>
+            <div className="text-xs font-semibold text-primary-600 uppercase mb-3">Recomendado</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.ideal.semISS)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
+            <div className="text-2xl font-bold text-primary-700">{formatCurrency(calc.ideal.comISS)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {((f.margemMin + f.margemMax) / 2).toFixed(0)}%</div>
           </div>
           <div className="rounded-xl border border-neutral-200 p-4 text-center">
-            <div className="text-xs font-semibold text-neutral-500 uppercase mb-2">Máximo</div>
-            <div className="text-2xl font-bold text-neutral-800">{formatCurrency(calc.precoMax)}</div>
+            <div className="text-xs font-semibold text-neutral-500 uppercase mb-3">Máximo</div>
+            <div className="text-xs text-neutral-400 mb-0.5">Sem NF</div>
+            <div className="text-sm font-medium text-neutral-700">{formatCurrency(calc.max.semISS)}</div>
+            <div className="text-xs text-neutral-400 mt-2 mb-0.5">Com NF</div>
+            <div className="text-lg font-bold text-neutral-800">{formatCurrency(calc.max.comISS)}</div>
             <div className="text-xs text-neutral-400 mt-1">margem {f.margemMax}%</div>
           </div>
         </div>
@@ -563,9 +583,9 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
         <div className="flex gap-2 flex-wrap">
           <span className="text-xs text-neutral-500">Usar:</span>
           {[
-            { label: `Mínimo ${formatCurrency(calc.precoMin)}`, val: calc.precoMin },
-            { label: `Ideal ${formatCurrency(calc.precoIdeal)}`, val: calc.precoIdeal },
-            { label: `Máximo ${formatCurrency(calc.precoMax)}`, val: calc.precoMax },
+            { label: `Sem NF Mín ${formatCurrency(calc.min.semISS)}`, val: calc.min.semISS },
+            { label: `Com NF Ideal ${formatCurrency(calc.ideal.comISS)}`, val: calc.ideal.comISS },
+            { label: `Com NF Máx ${formatCurrency(calc.max.comISS)}`, val: calc.max.comISS },
           ].map(opt => (
             <button key={opt.label} type="button"
               onClick={() => set('valorAdotado', Math.round(opt.val * 100) / 100)}
