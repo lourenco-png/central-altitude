@@ -17,7 +17,7 @@ export default function SolicitacoesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Solicitacao | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', servico: '', observacoes: '' });
+  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', servico: '', descricao: '', observacoes: '' });
 
   const { data = [], isLoading } = useQuery<Solicitacao[]>({
     queryKey: ['solicitacoes', statusFilter],
@@ -34,7 +34,7 @@ export default function SolicitacoesPage() {
   const openEdit = (s: Solicitacao) => {
     setEditing(s);
     const dt = new Date(s.data);
-    setForm({ obraId: s.obraId, engenheiroId: s.engenheiroId, data: format(dt, 'yyyy-MM-dd'), horario: format(dt, 'HH:mm'), status: s.status, servico: (s as any).servico || '', observacoes: s.observacoes || '' });
+    setForm({ obraId: s.obraId, engenheiroId: s.engenheiroId, data: format(dt, 'yyyy-MM-dd'), horario: format(dt, 'HH:mm'), status: s.status, servico: (s as any).servico || '', descricao: (s as any).descricao || '', observacoes: s.observacoes || '' });
     setShowModal(true);
   };
   const closeModal = () => { setShowModal(false); setEditing(null); };
@@ -42,7 +42,7 @@ export default function SolicitacoesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const data = new Date(`${form.data}T${form.horario}:00`);
-    const d = { obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, servico: form.servico || null, observacoes: form.observacoes };
+    const d = { obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, servico: form.servico || null, descricao: form.descricao || null, observacoes: form.observacoes };
     editing ? updateMut.mutate({ id: editing.id, d }) : createMut.mutate(d);
   };
 
@@ -50,7 +50,7 @@ export default function SolicitacoesPage() {
     <div>
       <PageHeader
         title="Solicitações de Topografia"
-        actions={<button onClick={() => { setEditing(null); setForm({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', observacoes: '' }); setShowModal(true); }} className="btn-primary"><Plus size={16} /> Nova Solicitação</button>}
+        actions={<button onClick={() => { setEditing(null); setForm({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', servico: '', descricao: '', observacoes: '' }); setShowModal(true); }} className="btn-primary"><Plus size={16} /> Nova Solicitação</button>}
       />
       <div className="card">
         <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
@@ -84,6 +84,7 @@ export default function SolicitacoesPage() {
           <div><label className="label">Obra *</label><select value={form.obraId} onChange={e => setForm({ ...form, obraId: e.target.value })} className="input" required><option value="">Selecionar...</option>{obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}</select></div>
           <div><label className="label">Engenheiro *</label><select value={form.engenheiroId} onChange={e => setForm({ ...form, engenheiroId: e.target.value })} className="input" required><option value="">Selecionar...</option>{engenheiros.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}</select></div>
           <div><label className="label">Serviço *</label><input type="text" value={form.servico} onChange={e => setForm({ ...form, servico: e.target.value })} className="input" placeholder="Ex: Levantamento planialtimétrico, Locação de obra..." required /></div>
+          <div><label className="label">Descrição do serviço</label><textarea value={form.descricao} onChange={e => setForm({ ...form, descricao: e.target.value })} className="input" rows={3} placeholder="Descreva detalhes do serviço a ser executado..." /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">Data *</label><input type="date" value={form.data} onChange={e => setForm({ ...form, data: e.target.value })} className="input" required /></div>
             <div><label className="label">Horário</label><input type="time" value={form.horario} onChange={e => setForm({ ...form, horario: e.target.value })} className="input" /></div>
