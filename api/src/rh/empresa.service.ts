@@ -32,6 +32,26 @@ export class EmpresaService {
     });
   }
 
+  async findDocumentosVencendo(dias = 30) {
+    const limite = new Date();
+    limite.setDate(limite.getDate() + dias);
+    const [docsFunc, docsEmpresa] = await Promise.all([
+      this.prisma.documentoFunc.findMany({
+        where: { validade: { not: null, lte: limite } },
+        include: { funcionario: { select: { id: true, nome: true } } },
+        orderBy: { validade: 'asc' },
+      }),
+      this.prisma.documentoEmpresa.findMany({
+        where: { validade: { not: null, lte: limite } },
+        orderBy: { validade: 'asc' },
+      }),
+    ]);
+    return {
+      funcionarios: docsFunc,
+      empresa: docsEmpresa,
+    };
+  }
+
   addSocio(empresaId: string, data: any) {
     return this.prisma.socio.create({ data: { ...data, empresaId } });
   }

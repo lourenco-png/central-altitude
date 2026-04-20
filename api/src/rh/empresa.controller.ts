@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { EmpresaService } from './empresa.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,6 +12,11 @@ export class EmpresaController {
 
   @Get()
   findFirst() { return this.service.findFirst(); }
+
+  @Get('documentos/vencendo')
+  findDocumentosVencendo(@Query('dias') dias?: string) {
+    return this.service.findDocumentosVencendo(dias ? parseInt(dias) : 30);
+  }
 
   @Put()
   upsert(@Body() body: any) { return this.service.upsert(body); }

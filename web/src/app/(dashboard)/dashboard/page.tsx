@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Users, DollarSign, AlertTriangle, Triangle, Clock, Building2, FileCheck } from 'lucide-react';
+import { Calendar, Users, DollarSign, AlertTriangle, Triangle, Clock, Building2, FileCheck, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
@@ -30,6 +30,12 @@ export default function DashboardPage() {
     queryFn: () => api.get('/comercial/pipeline').then((r) => r.data),
   });
 
+  const { data: docsVencendo } = useQuery<{ funcionarios: any[]; empresa: any[] }>({
+    queryKey: ['docs-vencendo'],
+    queryFn: () => api.get('/rh/empresa/documentos/vencendo?dias=30').then((r) => r.data),
+    initialData: { funcionarios: [], empresa: [] },
+  });
+
   const { data: stats } = useQuery<{ obrasAtivas: number; rdosPendentes: number; solicitacoesSemana: number; orcamentosAprovados: number }>({
     queryKey: ['topografia-stats'],
     queryFn: () => api.get('/topografia/obras/stats').then((r) => r.data),
@@ -39,6 +45,10 @@ export default function DashboardPage() {
   const servicosHoje = solicitacoes.filter((s) => new Date(s.data).toDateString() === hoje);
   const agendados = solicitacoes.filter((s) => s.status === 'AGENDADO').length;
   const episCriticos = epis.filter((e) => e.validade && getEpiStatus(e.validade).color === 'red');
+
+  const todosDocsVencendo = [...(docsVencendo.funcionarios ?? []), ...(docsVencendo.empresa ?? [])];
+  const docsVencidos = todosDocsVencendo.filter((d) => d.validade && new Date(d.validade) < new Date());
+  const docsProximos = todosDocsVencendo.filter((d) => d.validade && new Date(d.validade) >= new Date());
 
   const leadCount = pipeline.filter((o) => o.estagio === 'LEAD').length;
   const propostaCount = pipeline.filter((o) => o.estagio === 'PROPOSTA').length;
@@ -180,6 +190,42 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Documentos Vencendo */}
+      {todosDocsVencendo.length > 0 && (
+        <div className="card p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
+              <FileText size={17} className="text-orange-500" />
+              Documentos Próximos do Vencimento
+            </h3>
+            <div className="flex gap-2 text-xs">
+              {docsVencidos.length > 0 && <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">{docsVencidos.length} vencido(s)</span>}
+              {docsProximos.length > 0 && <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">{docsProximos.length} a vencer</span>}
+            </div>
+          </div>
+          <div className="space-y-2">
+            {todosDocsVencendo.slice(0, 8).map((d) => {
+              const vencido = d.validade && new Date(d.validade) < new Date();
+              const origem = d.funcionario ? d.funcionario.nome : 'Empresa';
+              const href = d.funcionario ? '/rh/funcionarios' : '/rh/empresa';
+              return (
+                <Link key={d.id} href={href}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${vencido ? 'bg-red-50 hover:bg-red-100' : 'bg-orange-50 hover:bg-orange-100'}`}>
+                  <AlertTriangle size={15} className={`flex-shrink-0 ${vencido ? 'text-red-500' : 'text-orange-500'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-800 truncate">{d.nome}</p>
+                    <p className="text-xs text-neutral-500">{origem}</p>
+                  </div>
+                  <span className={`text-xs font-medium whitespace-nowrap ${vencido ? 'text-red-600' : 'text-orange-600'}`}>
+                    {vencido ? 'Vencido · ' : ''}{formatDate(d.validade)}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Alertas */}
       {(episCriticos.length > 0 || (stats?.rdosPendentes ?? 0) > 0) && (
