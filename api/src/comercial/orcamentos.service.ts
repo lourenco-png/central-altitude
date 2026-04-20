@@ -35,6 +35,8 @@ export class OrcamentosService {
         itens: itens ? {
           create: itens.map((item: any, idx: number) => ({
             descricao: item.descricao,
+            codigo: item.codigo ?? null,
+            unidade: item.unidade ?? 'un',
             quantidade: item.quantidade,
             unitario: item.unitario,
             total: item.quantidade * item.unitario,
@@ -63,6 +65,8 @@ export class OrcamentosService {
           itens: {
             create: itens.map((item: any, idx: number) => ({
               descricao: item.descricao,
+              codigo: item.codigo ?? null,
+              unidade: item.unidade ?? 'un',
               quantidade: item.quantidade,
               unitario: item.unitario,
               total: item.quantidade * item.unitario,
