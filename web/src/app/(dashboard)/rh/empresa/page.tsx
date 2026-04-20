@@ -44,6 +44,7 @@ export default function EmpresaPage() {
   const saveMut = useMutation({
     mutationFn: (d: any) => api.put('/rh/empresa', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['empresa'] }); toast.success('Dados salvos!'); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erro ao salvar dados da empresa'),
   });
 
   const addSocioMut = useMutation({
