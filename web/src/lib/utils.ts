@@ -8,7 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: string | Date, fmt = 'dd/MM/yyyy') {
-  return format(new Date(date), fmt, { locale: ptBR });
+  // Parse date strings using UTC to avoid timezone shifting the displayed date
+  const d = typeof date === 'string'
+    ? new Date(date.includes('T') ? date : `${date}T12:00:00.000Z`)
+    : date;
+  return format(d, fmt, { locale: ptBR });
 }
 
 export function formatDateTime(date: string | Date) {

@@ -31,12 +31,17 @@ export class FuncionariosService {
     });
   }
 
+  private parseDate(dateStr: string): Date {
+    // Appends noon UTC to avoid timezone shifts (e.g. UTC-3 turning "2024-01-15" into Jan 14)
+    return new Date(`${dateStr.split('T')[0]}T12:00:00.000Z`);
+  }
+
   create(data: any) {
     const { admissao, setor, telefone, email, foto, ...rest } = data;
     return this.prisma.funcionario.create({
       data: {
         ...rest,
-        admissao: new Date(admissao),
+        admissao: this.parseDate(admissao),
         setor: setor || null,
         telefone: telefone || null,
         email: email || null,
@@ -51,7 +56,7 @@ export class FuncionariosService {
       where: { id },
       data: {
         ...rest,
-        ...(admissao ? { admissao: new Date(admissao) } : {}),
+        ...(admissao ? { admissao: this.parseDate(admissao) } : {}),
         setor: setor || null,
         telefone: telefone || null,
         email: email || null,
