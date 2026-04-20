@@ -28,13 +28,16 @@ export class AuthService {
     };
   }
 
-  async register(email: string, password: string, nome: string, role?: string) {
+  async register(email: string, password: string, nome: string, role?: string, requestingUserRole?: string) {
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException('E-mail já cadastrado');
 
+    // Apenas ADMIN pode definir roles. Outros sempre criam como VIEWER.
+    const safeRole = requestingUserRole === 'ADMIN' && role ? role : 'VIEWER';
+
     const hashed = await bcrypt.hash(password, 10);
     const user = await this.prisma.user.create({
-      data: { email, password: hashed, nome, ...(role ? { role: role as any } : {}) },
+      data: { email, password: hashed, nome, role: safeRole as any },
     });
 
     const payload = { sub: user.id, email: user.email, role: user.role };

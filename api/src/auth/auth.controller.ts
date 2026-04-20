@@ -17,8 +17,8 @@ export class AuthController {
   @Post('register')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  register(@Body() body: { email: string; password: string; nome: string; role?: string }) {
-    return this.authService.register(body.email, body.password, body.nome, body.role);
+  register(@Body() body: { email: string; password: string; nome: string; role?: string }, @Request() req) {
+    return this.authService.register(body.email, body.password, body.nome, body.role, req.user.role);
   }
 
   @Get('me')

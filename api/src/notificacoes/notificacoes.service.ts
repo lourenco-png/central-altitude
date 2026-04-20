@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -21,7 +21,10 @@ export class NotificacoesService {
     return this.prisma.notificacao.create({ data });
   }
 
-  marcarLida(id: string) {
+  async marcarLida(id: string, userId: string) {
+    const n = await this.prisma.notificacao.findUnique({ where: { id } });
+    if (!n) throw new NotFoundException('Notificação não encontrada');
+    if (n.userId !== userId) throw new ForbiddenException();
     return this.prisma.notificacao.update({ where: { id }, data: { lida: true } });
   }
 
@@ -29,7 +32,10 @@ export class NotificacoesService {
     return this.prisma.notificacao.updateMany({ where: { userId, lida: false }, data: { lida: true } });
   }
 
-  remove(id: string) {
+  async remove(id: string, userId: string) {
+    const n = await this.prisma.notificacao.findUnique({ where: { id } });
+    if (!n) throw new NotFoundException('Notificação não encontrada');
+    if (n.userId !== userId) throw new ForbiddenException();
     return this.prisma.notificacao.delete({ where: { id } });
   }
 

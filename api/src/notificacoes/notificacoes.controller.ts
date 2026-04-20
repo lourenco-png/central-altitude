@@ -21,8 +21,8 @@ export class NotificacoesController {
   }
 
   @Patch(':id/lida')
-  marcarLida(@Param('id') id: string) {
-    return this.service.marcarLida(id);
+  marcarLida(@Param('id') id: string, @Request() req) {
+    return this.service.marcarLida(id, req.user.userId);
   }
 
   @Patch('marcar-todas-lidas')
@@ -31,7 +31,7 @@ export class NotificacoesController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.service.remove(id, req.user.userId);
   }
 }
