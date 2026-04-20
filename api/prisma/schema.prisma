@@ -90,7 +90,7 @@ enum ObraStatus {
 model Engenheiro {
   id           String        @id @default(cuid())
   nome         String
-  crea         String
+  crea         String?
   telefone     String?
   email        String?
   ativo        Boolean       @default(true)

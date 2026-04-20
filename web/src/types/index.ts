@@ -15,7 +15,7 @@ export interface Obra {
 export interface Engenheiro {
   id: string;
   nome: string;
-  crea: string;
+  crea?: string;
   telefone?: string;
   email?: string;
   ativo: boolean;
