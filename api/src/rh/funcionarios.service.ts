@@ -32,11 +32,32 @@ export class FuncionariosService {
   }
 
   create(data: any) {
-    return this.prisma.funcionario.create({ data });
+    const { admissao, setor, telefone, email, foto, ...rest } = data;
+    return this.prisma.funcionario.create({
+      data: {
+        ...rest,
+        admissao: new Date(admissao),
+        setor: setor || null,
+        telefone: telefone || null,
+        email: email || null,
+        foto: foto || null,
+      },
+    });
   }
 
   update(id: string, data: any) {
-    return this.prisma.funcionario.update({ where: { id }, data });
+    const { admissao, setor, telefone, email, foto, ...rest } = data;
+    return this.prisma.funcionario.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(admissao ? { admissao: new Date(admissao) } : {}),
+        setor: setor || null,
+        telefone: telefone || null,
+        email: email || null,
+        ...(foto !== undefined ? { foto: foto || null } : {}),
+      },
+    });
   }
 
   remove(id: string) {

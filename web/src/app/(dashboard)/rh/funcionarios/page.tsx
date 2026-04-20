@@ -135,11 +135,13 @@ export default function FuncionariosPage() {
   const createMut = useMutation({
     mutationFn: (d: any) => api.post('/rh/funcionarios', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['funcionarios'] }); toast.success('Funcionário criado!'); closeModal(); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erro ao criar funcionário'),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, d }: any) => api.patch(`/rh/funcionarios/${id}`, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['funcionarios'] }); toast.success('Atualizado!'); closeModal(); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erro ao atualizar funcionário'),
   });
 
   const deleteMut = useMutation({
