@@ -58,7 +58,7 @@ export default function CalendarioPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedSol, setSelectedSol] = useState<Solicitacao | null>(null);
-  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', observacoes: '' });
+  const [form, setForm] = useState({ obraId: '', engenheiroId: '', data: '', horario: '08:00', status: 'AGENDADO', servico: '', descricao: '', observacoes: '' });
 
   const start = startOfMonth(currentDate);
   const end = endOfMonth(currentDate);
@@ -91,14 +91,14 @@ export default function CalendarioPage() {
 
   const openNew = (day: Date) => {
     setSelectedDay(day);
-    setForm({ obraId: '', engenheiroId: '', data: format(day, 'yyyy-MM-dd'), horario: '08:00', status: 'AGENDADO', observacoes: '' });
+    setForm({ obraId: '', engenheiroId: '', data: format(day, 'yyyy-MM-dd'), horario: '08:00', status: 'AGENDADO', servico: '', descricao: '', observacoes: '' });
     setShowModal(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const data = new Date(`${form.data}T${form.horario}:00`);
-    createMutation.mutate({ obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, observacoes: form.observacoes });
+    createMutation.mutate({ obraId: form.obraId, engenheiroId: form.engenheiroId, data, status: form.status, servico: form.servico || null, descricao: form.descricao || null, observacoes: form.observacoes });
   };
 
   const dayEvents = (day: Date) => solicitacoes.filter((s) => isSameDay(new Date(s.data), day));
@@ -208,6 +208,14 @@ export default function CalendarioPage() {
               {engenheiros.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
             </select>
           </div>
+          <div>
+            <label className="label">Serviço *</label>
+            <input type="text" value={form.servico} onChange={(e) => setForm({ ...form, servico: e.target.value })} className="input" placeholder="Ex: Levantamento planialtimétrico, Locação de obra..." required />
+          </div>
+          <div>
+            <label className="label">Descrição do serviço</label>
+            <textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} className="input" rows={3} placeholder="Descreva detalhes do serviço a ser executado..." />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Data *</label>
@@ -268,6 +276,18 @@ export default function CalendarioPage() {
                 <p className="text-xs text-neutral-500">Status</p>
                 <div className="mt-1"><StatusBadge status={selectedSol.status} /></div>
               </div>
+              {(selectedSol as any).servico && (
+                <div>
+                  <p className="text-xs text-neutral-500">Serviço</p>
+                  <p className="text-sm font-medium">{(selectedSol as any).servico}</p>
+                </div>
+              )}
+              {(selectedSol as any).descricao && (
+                <div>
+                  <p className="text-xs text-neutral-500">Descrição do serviço</p>
+                  <p className="text-sm">{(selectedSol as any).descricao}</p>
+                </div>
+              )}
               {selectedSol.observacoes && (
                 <div>
                   <p className="text-xs text-neutral-500">Observações</p>
