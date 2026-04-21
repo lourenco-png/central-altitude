@@ -10,36 +10,30 @@ import { KpiCard } from '@/components/ui/KpiCard';
 import { formatCurrency, formatDate, getEpiStatus } from '@/lib/utils';
 import type { Solicitacao, EPI, Oportunidade } from '@/types';
 
+interface DashboardData {
+  stats: { obrasAtivas: number; rdosPendentes: number; solicitacoesSemana: number; orcamentosAprovados: number };
+  solicitacoes: Solicitacao[];
+  episVencendo: EPI[];
+  pipeline: Oportunidade[];
+  documentos: { funcionarios: any[]; empresa: any[] };
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
 
-  const { data: solicitacoes = [] } = useQuery<Solicitacao[]>({
-    queryKey: ['solicitacoes-dashboard'],
-    queryFn: () => api.get('/topografia/solicitacoes').then((r) => r.data),
+  const { data, isLoading } = useQuery<DashboardData>({
+    queryKey: ['dashboard'],
+    queryFn: () => api.get('/topografia/obras/dashboard').then((r) => r.data),
+    staleTime: 60_000,
   });
 
-  const { data: epis = [] } = useQuery<EPI[]>({
-    queryKey: ['epis-vencendo'],
-    queryFn: () => api.get('/rh/epis/vencendo?dias=30').then((r) => r.data),
-  });
-
-  const { data: pipeline = [] } = useQuery<Oportunidade[]>({
-    queryKey: ['pipeline-dashboard'],
-    queryFn: () => api.get('/comercial/pipeline').then((r) => r.data),
-  });
-
-  const { data: docsVencendo } = useQuery<{ funcionarios: any[]; empresa: any[] }>({
-    queryKey: ['docs-vencendo'],
-    queryFn: () => api.get('/rh/empresa/documentos/vencendo?dias=30').then((r) => r.data),
-    initialData: { funcionarios: [], empresa: [] },
-  });
-
-  const { data: stats } = useQuery<{ obrasAtivas: number; rdosPendentes: number; solicitacoesSemana: number; orcamentosAprovados: number }>({
-    queryKey: ['topografia-stats'],
-    queryFn: () => api.get('/topografia/obras/stats').then((r) => r.data),
-  });
+  const solicitacoes: Solicitacao[] = data?.solicitacoes ?? [];
+  const epis: EPI[] = data?.episVencendo ?? [];
+  const pipeline: Oportunidade[] = data?.pipeline ?? [];
+  const stats = data?.stats;
+  const docsVencendo = data?.documentos ?? { funcionarios: [], empresa: [] };
 
   const hoje = new Date().toDateString();
   const servicosHoje = solicitacoes.filter((s) => new Date(s.data).toDateString() === hoje);
@@ -54,6 +48,14 @@ export default function DashboardPage() {
   const propostaCount = pipeline.filter((o) => o.estagio === 'PROPOSTA').length;
   const fechadoCount = pipeline.filter((o) => o.estagio === 'FECHADO').length;
   const totalPipeline = pipeline.reduce((sum, o) => sum + (o.valor || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-700 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div>

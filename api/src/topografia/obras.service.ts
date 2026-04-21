@@ -87,4 +87,69 @@ export class ObrasService {
     ]);
     return { obrasAtivas, rdosPendentes, solicitacoesSemana, orcamentosAprovados };
   }
+
+  // ── Dashboard consolidado (1 round-trip) ───────────────────
+
+  async getDashboard() {
+    const hoje = new Date();
+    const limite30 = new Date(hoje);
+    limite30.setDate(hoje.getDate() + 30);
+    const semanaAtras = new Date(hoje);
+    semanaAtras.setDate(hoje.getDate() - 7);
+    const semanaFrente = new Date(hoje);
+    semanaFrente.setDate(hoje.getDate() + 7);
+
+    const [
+      obrasAtivas,
+      rdosPendentes,
+      solicitacoesSemana,
+      orcamentosAprovados,
+      solicitacoes,
+      episVencendo,
+      pipeline,
+      docsFunc,
+      docsEmpresa,
+    ] = await Promise.all([
+      this.prisma.obra.count({ where: { status: 'ATIVA' } }),
+      this.prisma.rDO.count({ where: { rdoStatus: 'aguardando_assinatura' } }),
+      this.prisma.solicitacao.count({
+        where: { status: 'AGENDADO', data: { gte: semanaAtras, lte: semanaFrente } },
+      }),
+      this.prisma.orcamento.count({ where: { status: 'APROVADO' } }),
+      this.prisma.solicitacao.findMany({
+        include: {
+          obra: { select: { id: true, nome: true } },
+          engenheiro: { select: { id: true, nome: true } },
+        },
+        orderBy: { data: 'asc' },
+        take: 100,
+      }),
+      this.prisma.ePI.findMany({
+        where: { validade: { lte: limite30 } },
+        include: { funcionario: { select: { id: true, nome: true } } },
+        orderBy: { validade: 'asc' },
+      }),
+      this.prisma.oportunidade.findMany({
+        include: { cliente: { select: { id: true, nome: true } } },
+        orderBy: [{ estagio: 'asc' }, { ordem: 'asc' }],
+      }),
+      this.prisma.documentoFunc.findMany({
+        where: { validade: { not: null, lte: limite30 } },
+        include: { funcionario: { select: { id: true, nome: true } } },
+        orderBy: { validade: 'asc' },
+      }),
+      this.prisma.documentoEmpresa.findMany({
+        where: { validade: { not: null, lte: limite30 } },
+        orderBy: { validade: 'asc' },
+      }),
+    ]);
+
+    return {
+      stats: { obrasAtivas, rdosPendentes, solicitacoesSemana, orcamentosAprovados },
+      solicitacoes,
+      episVencendo,
+      pipeline,
+      documentos: { funcionarios: docsFunc, empresa: docsEmpresa },
+    };
+  }
 }

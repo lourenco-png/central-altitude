@@ -62,6 +62,10 @@ async function bootstrap() {
     console.log(`Swagger docs: http://localhost:${process.env.PORT || 3001}/api/docs`);
   }
 
+  // ── Health check (Render keep-alive) ────────────────────────
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req: any, res: any) => res.status(200).json({ status: 'ok' }));
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`Central Altitude API rodando na porta ${port}`);

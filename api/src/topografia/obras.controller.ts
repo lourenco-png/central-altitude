@@ -13,6 +13,9 @@ export class ObrasController {
   @Get('stats')
   getStats() { return this.service.getStats(); }
 
+  @Get('dashboard')
+  getDashboard() { return this.service.getDashboard(); }
+
   @Get()
   findAll(@Query('status') status?: string) { return this.service.findAll(status); }
 

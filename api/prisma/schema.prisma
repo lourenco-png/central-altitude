@@ -64,6 +64,8 @@ model Obra {
   rdos         RDO[]
   medicoes     Medicao[]
 
+  @@index([status])
+  @@index([clienteId])
   @@map("obras")
 }
 
@@ -116,6 +118,10 @@ model Solicitacao {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
+  @@index([status])
+  @@index([data])
+  @@index([obraId])
+  @@index([engenheiroId])
   @@map("solicitacoes")
 }
 
@@ -155,6 +161,8 @@ model RDO {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  @@index([obraId])
+  @@index([rdoStatus])
   @@map("rdos")
 }
 
@@ -227,6 +235,8 @@ model EPI {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
+  @@index([funcionarioId])
+  @@index([validade])
   @@map("epis")
 }
 
@@ -460,5 +470,7 @@ model Notificacao {
   link      String?
   createdAt DateTime @default(now())
 
+  @@index([userId, lida])
+  @@index([userId, createdAt])
   @@map("notificacoes")
 }
