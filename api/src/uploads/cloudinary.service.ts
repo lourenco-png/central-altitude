@@ -18,7 +18,8 @@ export class CloudinaryService {
     }
 
     return new Promise((resolve, reject) => {
-      const resourceType = file.mimetype === 'application/pdf' ? 'raw' : 'image';
+      const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      const resourceType = imageTypes.includes(file.mimetype) ? 'image' : 'raw';
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'central-altitude/documentos',
