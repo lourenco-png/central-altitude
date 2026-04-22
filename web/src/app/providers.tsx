@@ -1,9 +1,15 @@
 'use client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Aquece a API no Render (evita cold start de 30-60s no primeiro uso)
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://central-altitude-api.onrender.com';
+    fetch(`${apiUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(10_000) }).catch(() => {});
+  }, []);
+
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {

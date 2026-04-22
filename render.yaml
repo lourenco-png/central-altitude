@@ -21,3 +21,11 @@ services:
         value: "352979691142268"
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+  # Keep-alive: faz ping na API a cada 13 min para evitar cold start no free tier
+  - type: cron
+    name: api-keep-alive
+    runtime: node
+    schedule: "*/13 * * * *"
+    buildCommand: echo "ok"
+    startCommand: node -e "require('https').get('https://central-altitude-api.onrender.com/health',r=>{console.log('ping',r.statusCode)}).on('error',e=>console.error(e.message))"
