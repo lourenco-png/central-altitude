@@ -22,8 +22,9 @@ export default function LoginPage() {
       await login(email, password);
       toast.success('Bem-vindo!');
       router.push('/dashboard');
-    } catch {
-      toast.error('Credenciais inválidas. Verifique usuário e senha.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Erro ao entrar. Verifique suas credenciais.');
     } finally {
       setLoading(false);
     }

@@ -7,12 +7,14 @@ import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { getInitials, formatDateTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
 import type { Notificacao } from '@/types';
 
 export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { user, logout } = useAuthStore();
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUser, setShowUser] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const notifsRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
@@ -158,7 +160,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             </Link>
             <hr className="border-neutral-100 my-1" />
             <button
-              onClick={logout}
+              onClick={() => { setShowUser(false); setShowLogoutConfirm(true); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <LogOut size={15} />
@@ -167,6 +169,23 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
         )}
       </div>
+      <Modal open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} title="Confirmar saída" size="sm">
+        <p className="text-sm text-neutral-600 mb-6">Tem certeza que deseja sair do sistema?</p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowLogoutConfirm(false)}
+            className="px-4 py-2 text-sm rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={logout}
+            className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+          >
+            Sair
+          </button>
+        </div>
+      </Modal>
     </header>
   );
 }
