@@ -70,7 +70,15 @@ export class FuncionariosService {
   }
 
   addDocumento(funcionarioId: string, data: any) {
-    return this.prisma.documentoFunc.create({ data: { ...data, funcionarioId } });
+    const { emissao, validade, ...rest } = data;
+    return this.prisma.documentoFunc.create({
+      data: {
+        ...rest,
+        funcionarioId,
+        emissao: emissao ? this.parseDate(emissao) : null,
+        validade: validade ? this.parseDate(validade) : null,
+      },
+    });
   }
 
   removeDocumento(id: string) {
