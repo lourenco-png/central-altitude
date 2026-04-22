@@ -322,6 +322,21 @@ model DocumentoEmpresa {
 }
 
 // ============================================================
+// ARQUIVOS (armazenados no banco, sem dependência externa)
+// ============================================================
+
+model File {
+  id           String   @id @default(cuid())
+  data         Bytes
+  mimetype     String
+  originalname String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  @@map("files")
+}
+
+// ============================================================
 // COMERCIAL
 // ============================================================
 

@@ -15,6 +15,8 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: API_BASE_URL
+        value: "https://central-altitude.onrender.com"
       - key: CLOUDINARY_CLOUD_NAME
         value: dgowmqdkk
       - key: CLOUDINARY_API_KEY
