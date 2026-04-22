@@ -86,13 +86,7 @@ async function exportarHistoricoEPI(func: any, epis: any[]) {
 
 function docUrl(arquivo?: string | null) {
   if (!arquivo) return '';
-  if (arquivo.startsWith('http')) {
-    // Cloudinary raw (PDF/doc): força exibição inline no browser
-    if (arquivo.includes('res.cloudinary.com') && arquivo.includes('/raw/upload/')) {
-      return arquivo.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
-    }
-    return arquivo;
-  }
+  if (arquivo.startsWith('http')) return arquivo;
   return `${process.env.NEXT_PUBLIC_API_URL || 'https://central-altitude.onrender.com'}${arquivo}`;
 }
 
