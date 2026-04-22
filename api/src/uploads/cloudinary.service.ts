@@ -1,5 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
+import { extname } from 'path';
+
 type UploadApiResponse = { secure_url: string; public_id: string; [key: string]: any };
 
 @Injectable()
@@ -14,12 +16,14 @@ export class CloudinaryService {
 
   async upload(file: Express.Multer.File): Promise<UploadApiResponse> {
     if (!process.env.CLOUDINARY_CLOUD_NAME) {
-      throw new InternalServerErrorException('Cloudinary não configurado. Defina as variáveis CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET.');
+      throw new InternalServerErrorException('Cloudinary não configurado.');
     }
 
     return new Promise((resolve, reject) => {
       const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      const resourceType = imageTypes.includes(file.mimetype) ? 'image' : 'raw';
+      const isImage = imageTypes.includes(file.mimetype);
+      const resourceType = isImage ? 'image' : 'raw';
+
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'central-altitude/documentos',
@@ -28,8 +32,21 @@ export class CloudinaryService {
           unique_filename: true,
         },
         (error, result) => {
-          if (error) reject(error);
-          else resolve(result!);
+          if (error) {
+            reject(error);
+            return;
+          }
+          // Cloudinary raw uploads não incluem a extensão na secure_url.
+          // Sem a extensão o browser recebe Content-Type: application/octet-stream
+          // e não sabe abrir o arquivo no formato correto (PDF, Word, Excel...).
+          // Solução: anexar a extensão original à URL antes de salvar no banco.
+          if (!isImage) {
+            const ext = extname(file.originalname).toLowerCase();
+            if (ext && !result!.secure_url.endsWith(ext)) {
+              result!.secure_url = result!.secure_url + ext;
+            }
+          }
+          resolve(result!);
         },
       );
       uploadStream.end(file.buffer);
