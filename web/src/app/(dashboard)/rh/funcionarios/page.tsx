@@ -86,8 +86,14 @@ async function exportarHistoricoEPI(func: any, epis: any[]) {
 
 function docUrl(arquivo?: string | null) {
   if (!arquivo) return '';
-  if (arquivo.startsWith('http')) return arquivo;
-  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${arquivo}`;
+  if (arquivo.startsWith('http')) {
+    // Cloudinary raw (PDF/doc): força exibição inline no browser
+    if (arquivo.includes('res.cloudinary.com') && arquivo.includes('/raw/upload/')) {
+      return arquivo.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
+    }
+    return arquivo;
+  }
+  return `${process.env.NEXT_PUBLIC_API_URL || 'https://central-altitude.onrender.com'}${arquivo}`;
 }
 
 function isExpiringSoon(v?: string | null) {
@@ -285,7 +291,7 @@ export default function FuncionariosPage() {
             {
               key: 'documentos', label: 'Docs', className: 'w-20 text-center',
               render: (f) => {
-                const count = (f as any).documentos?.length ?? 0;
+                const count = (f as any)._count?.documentos ?? 0;
                 return (
                   <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${count > 0 ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-400'}`}>
                     <FileText size={11} />{count}
