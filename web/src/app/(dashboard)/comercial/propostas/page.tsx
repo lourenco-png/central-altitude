@@ -92,10 +92,11 @@ export default function PropostasPage() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => pdfMut.mutate(p.id)}
-                  disabled={pdfMut.isPending}
+                  disabled={pdfMut.isPending && pdfMut.variables === p.id}
                   className="btn-primary"
                 >
-                  <Download size={15} /> Gerar PDF
+                  <Download size={15} />
+                  {pdfMut.isPending && pdfMut.variables === p.id ? 'Gerando…' : 'Exportar Proposta'}
                 </button>
               </div>
             </div>

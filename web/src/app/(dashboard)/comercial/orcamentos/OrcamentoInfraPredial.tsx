@@ -56,6 +56,12 @@ interface FormState {
   parcelamento: string;
   condicoes: string;
   status: string;
+  contato: string;
+  descricaoServico: string;
+  escopoSubtitulo: string;
+  escopoItemsText: string;
+  prazoTexto: string;
+  condicoesPagamento: string;
 }
 
 const DISCIPLINAS_DEFAULT: Disciplina[] = [
@@ -101,6 +107,12 @@ const DEFAULT: FormState = {
   parcelamento: '',
   condicoes: '',
   status: 'RASCUNHO',
+  contato: '',
+  descricaoServico: '',
+  escopoSubtitulo: '',
+  escopoItemsText: '',
+  prazoTexto: '',
+  condicoesPagamento: '',
 };
 
 let _uid = 1;
@@ -241,10 +253,13 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
       clienteId: f.clienteId,
       tipo: 'INFRA_PREDIAL',
       status,
-      condicoes: f.condicoes || undefined,
+      condicoes: f.condicoesPagamento || f.condicoes || undefined,
       total,
       desconto: 0,
-      dadosEspecificos: { ...f },
+      dadosEspecificos: {
+        ...f,
+        escopoItems: f.escopoItemsText.split('\n').map((s: string) => s.trim()).filter(Boolean),
+      },
       itens,
     };
   };
@@ -593,6 +608,56 @@ export function OrcamentoInfraPredial({ orcamento, onSaved, onCancel }: Props) {
               {opt.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Dados para a Proposta PDF */}
+      <section className="card p-5 space-y-4 border-2 border-primary-100">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary-600 inline-block" />
+          <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Dados da Proposta PDF</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Responsável / A/C (capa da proposta)</label>
+            <input value={f.contato} onChange={e => set('contato', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: João Silva — Diretor de Projetos" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Descrição do serviço (carta de apresentação)</label>
+            <input value={f.descricaoServico} onChange={e => set('descricaoServico', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Projetos de infraestrutura de água e esgoto para loteamento…" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Subtítulo do Escopo</label>
+            <input value={f.escopoSubtitulo} onChange={e => set('escopoSubtitulo', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Projeto de Água e Esgoto" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Prazo de entrega (texto livre)</label>
+            <input value={f.prazoTexto} onChange={e => set('prazoTexto', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Até 30 dias após aceite da proposta." />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1">Itens do Escopo (um por linha — aparece como lista no PDF)</label>
+          <textarea value={f.escopoItemsText} onChange={e => set('escopoItemsText', e.target.value)}
+            rows={5}
+            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none resize-y"
+            placeholder={"Elaboração do projeto de rede de água\nElaboração do projeto de rede de esgoto\nDimensionamento hidráulico\nART de responsabilidade técnica\nMemorial descritivo e especificações"} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1">Forma de Pagamento (aparece na pág. Orçamento do PDF)</label>
+          <textarea value={f.condicoesPagamento} onChange={e => set('condicoesPagamento', e.target.value)}
+            rows={3}
+            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none resize-y"
+            placeholder="Ex: 50% no aceite da proposta + 50% na entrega dos serviços." />
         </div>
       </section>
 

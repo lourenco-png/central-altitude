@@ -53,6 +53,13 @@ interface FormState {
   valorAdotado: number;
   condicoes: string;
   status: string;
+  // Dados para o PDF da Proposta
+  contato: string;
+  descricaoServico: string;
+  escopoSubtitulo: string;
+  escopoItemsText: string;
+  prazoTexto: string;
+  condicoesPagamento: string;
 }
 
 const EQUIPE_DEFAULT: TeamMember[] = [
@@ -88,6 +95,12 @@ const DEFAULT: FormState = {
   valorAdotado: 0,
   condicoes: '',
   status: 'RASCUNHO',
+  contato: '',
+  descricaoServico: '',
+  escopoSubtitulo: '',
+  escopoItemsText: '',
+  prazoTexto: '',
+  condicoesPagamento: '',
 };
 
 // ── Adjustment maps (fiel à planilha Base de Dados) ─────────
@@ -223,12 +236,15 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
       clienteId: f.clienteId,
       tipo: 'TOPOGRAFIA',
       status: f.status,
-      condicoes: f.condicoes || undefined,
+      condicoes: f.condicoesPagamento || f.condicoes || undefined,
       total,
       desconto: 0,
-      dadosEspecificos: { ...f },
+      dadosEspecificos: {
+        ...f,
+        escopoItems: f.escopoItemsText.split('\n').map((s: string) => s.trim()).filter(Boolean),
+      },
       itens: [
-        { descricao: 'Serviços de Topografia', quantidade: 1, unitario: total },
+        { descricao: f.descricaoServico || 'Serviços de Topografia', quantidade: 1, unitario: total },
       ],
     };
   };
@@ -529,6 +545,56 @@ export function OrcamentoTopografia({ orcamento, onSaved, onCancel }: Props) {
               {opt.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Dados para a Proposta PDF */}
+      <section className="card p-5 space-y-4 border-2 border-primary-100">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary-600 inline-block" />
+          <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">Dados da Proposta PDF</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Responsável / A/C (capa da proposta)</label>
+            <input value={f.contato} onChange={e => set('contato', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: João Silva — Diretor de Projetos" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Descrição do serviço (carta de apresentação)</label>
+            <input value={f.descricaoServico} onChange={e => set('descricaoServico', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Equipe Mensal de Topografia para implantação de loteamento…" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Subtítulo do Escopo</label>
+            <input value={f.escopoSubtitulo} onChange={e => set('escopoSubtitulo', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Levantamento Planialtimétrico" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Prazo de entrega (texto livre)</label>
+            <input value={f.prazoTexto} onChange={e => set('prazoTexto', e.target.value)}
+              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-400 outline-none"
+              placeholder="Ex: Até 15 dias após aceite da proposta." />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1">Itens do Escopo (um por linha — aparece como lista no PDF)</label>
+          <textarea value={f.escopoItemsText} onChange={e => set('escopoItemsText', e.target.value)}
+            rows={5}
+            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none resize-y"
+            placeholder={"Levantamento planialtimétrico da área\nImplantação de marcos topográficos\nElaboração de planta e memorial descritivo\nAcompanhamento técnico durante a obra"} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1">Forma de Pagamento (aparece na pág. Orçamento do PDF)</label>
+          <textarea value={f.condicoesPagamento} onChange={e => set('condicoesPagamento', e.target.value)}
+            rows={3}
+            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 outline-none resize-y"
+            placeholder="Ex: 50% no aceite da proposta + 50% na entrega dos serviços." />
         </div>
       </section>
 
