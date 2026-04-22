@@ -26,6 +26,6 @@ services:
   - type: cron
     name: api-keep-alive
     runtime: node
-    schedule: "*/13 * * * *"
+    schedule: "*/10 * * * *"
     buildCommand: echo "ok"
     startCommand: node -e "require('https').get('https://central-altitude.onrender.com/health',r=>{console.log('ping',r.statusCode)}).on('error',e=>console.error(e.message))"
