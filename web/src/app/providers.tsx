@@ -14,8 +14,8 @@ function useApiWarmup() {
     let done = false;
 
     const warmup = async () => {
-      // Após 3s sem resposta, mostra o aviso
-      timer = setTimeout(() => { if (!done) setSlow(true); }, 3000);
+      // Após 8s sem resposta, mostra o aviso
+      timer = setTimeout(() => { if (!done) setSlow(true); }, 8000);
       try {
         await fetch(`${API_URL}/health`, {
           method: 'GET',
