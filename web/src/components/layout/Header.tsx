@@ -54,6 +54,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   };
 
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-neutral-200 flex items-center px-4 gap-4 z-50 shadow-sm">
       <button
         onClick={onToggleSidebar}
@@ -169,23 +170,25 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
         )}
       </div>
-      <Modal open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} title="Confirmar saída" size="sm">
-        <p className="text-sm text-neutral-600 mb-6">Tem certeza que deseja sair do sistema?</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={() => setShowLogoutConfirm(false)}
-            className="px-4 py-2 text-sm rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={logout}
-            className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-          >
-            Sair
-          </button>
-        </div>
-      </Modal>
     </header>
+
+    <Modal open={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)} title="Confirmar saída" size="sm">
+      <p className="text-sm text-neutral-600 mb-6">Tem certeza que deseja sair do sistema?</p>
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => setShowLogoutConfirm(false)}
+          className="px-4 py-2 text-sm rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={logout}
+          className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+        >
+          Sair
+        </button>
+      </div>
+    </Modal>
+    </>
   );
 }
