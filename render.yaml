@@ -31,21 +31,3 @@ services:
     schedule: "*/5 * * * *"
     buildCommand: echo "ok"
     startCommand: node -e "require('https').get('https://central-altitude.onrender.com/health',r=>{console.log('ping ok',r.statusCode)}).on('error',e=>{console.error('ping falhou:',e.message);process.exit(1)})"
-
-  # Backup diário do banco às 02:00 UTC com upload para Cloudflare R2
-  - type: cron
-    name: db-backup-daily
-    runtime: docker
-    dockerfilePath: ./scripts/Dockerfile.backup
-    schedule: "0 2 * * *"
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: R2_ACCOUNT_ID
-        sync: false
-      - key: R2_ACCESS_KEY_ID
-        sync: false
-      - key: R2_SECRET_ACCESS_KEY
-        sync: false
-      - key: R2_BUCKET_NAME
-        value: central-altitude
