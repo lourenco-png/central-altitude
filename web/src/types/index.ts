@@ -85,6 +85,7 @@ export interface Falta {
   data: string;
   tipo: 'FALTA' | 'ATRASO' | 'SAIDA_ANTECIPADA';
   justificada: boolean;
+  punida: boolean;
   motivo?: string;
   observacao?: string;
   createdAt: string;
@@ -218,6 +219,47 @@ export interface Oportunidade {
   estagio: 'LEAD' | 'PROPOSTA' | 'FECHADO';
   ordem: number;
   createdAt: string;
+}
+
+// ============================================================
+// DISCIPLINAR
+// ============================================================
+
+export type TipoAcaoDisciplinar =
+  | 'ADVERTENCIA_VERBAL'
+  | 'ADVERTENCIA_ESCRITA'
+  | 'SUSPENSAO'
+  | 'JUSTA_CAUSA'
+  | 'CARTA_ABANDONO';
+
+export type StatusAssinatura = 'PENDENTE' | 'ASSINADO' | 'RECUSADO';
+export type NivelRisco = 'OK' | 'ADVERTENCIA' | 'SUSPENSAO' | 'RISCO_JUSTA_CAUSA' | 'JUSTA_CAUSA' | 'ABANDONO_POSSIVEL';
+
+export interface AcaoDisciplinar {
+  id: string;
+  funcionarioId: string;
+  funcionario?: { id: string; nome: string; cargo: string; setor?: string };
+  tipo: TipoAcaoDisciplinar;
+  data: string;
+  motivo: string;
+  diasSuspensao?: number;
+  faltasVinculadas: string[];
+  documentoPdf?: string;
+  statusAssinatura: StatusAssinatura;
+  documentoAssinado?: string;
+  overrideJustificativa?: string;
+  observacao?: string;
+  createdAt: string;
+}
+
+export interface FuncionarioDisciplinar {
+  funcionario: { id: string; nome: string; cargo: string; setor?: string; status: string };
+  totalFaltas: number;
+  faltasInjustificadasNaoPunidas: number;
+  ultimaFalta: string | null;
+  nivel: NivelRisco;
+  sugestao: { tipo: string; diasSuspensao?: number; mensagem: string } | null;
+  acoes: AcaoDisciplinar[];
 }
 
 // ============================================================

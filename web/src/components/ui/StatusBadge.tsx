@@ -37,6 +37,15 @@ const statusMap: Record<string, { label: string; className: string }> = {
   LEAD:    { label: 'Lead',    className: 'badge-blue' },
   PROPOSTA:{ label: 'Proposta', className: 'badge-orange' },
   FECHADO: { label: 'Fechado',  className: 'badge-green' },
+  // Disciplinar — tipo de ação
+  ADVERTENCIA_VERBAL:  { label: 'Adv. Verbal',  className: 'badge-orange' },
+  ADVERTENCIA_ESCRITA: { label: 'Adv. Escrita',  className: 'badge-orange' },
+  SUSPENSAO:           { label: 'Suspensão',      className: 'badge-red' },
+  JUSTA_CAUSA:         { label: 'Justa Causa',    className: 'badge-red' },
+  CARTA_ABANDONO:      { label: 'Carta Abandono', className: 'badge-gray' },
+  // Disciplinar — status assinatura
+  ASSINADO:  { label: 'Assinado',  className: 'badge-green' },
+  RECUSADO:  { label: 'Recusado',  className: 'badge-red' },
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

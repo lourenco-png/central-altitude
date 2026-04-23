@@ -195,12 +195,13 @@ model Funcionario {
   admissao    DateTime
   status      FuncionarioStatus @default(ATIVO)
   foto        String?
-  documentos  DocumentoFunc[]
-  epis        EPI[]
-  ferias      Ferias[]
-  faltas      Falta[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  documentos          DocumentoFunc[]
+  epis                EPI[]
+  ferias              Ferias[]
+  faltas              Falta[]
+  acoesDisciplinares  AcaoDisciplinar[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@map("funcionarios")
 }
@@ -269,6 +270,7 @@ model Falta {
   justificada   Boolean     @default(false)
   motivo        String?
   observacao    String?
+  punida        Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -279,6 +281,42 @@ enum TipoFalta {
   FALTA
   ATRASO
   SAIDA_ANTECIPADA
+}
+
+model AcaoDisciplinar {
+  id                    String              @id @default(cuid())
+  funcionarioId         String
+  funcionario           Funcionario         @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  tipo                  TipoAcaoDisciplinar
+  data                  DateTime
+  motivo                String
+  diasSuspensao         Int?
+  faltasVinculadas      String[]            @default([])
+  documentoPdf          String?
+  statusAssinatura      StatusAssinatura    @default(PENDENTE)
+  documentoAssinado     String?
+  overrideJustificativa String?
+  observacao            String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([funcionarioId])
+  @@index([tipo])
+  @@map("acoes_disciplinares")
+}
+
+enum TipoAcaoDisciplinar {
+  ADVERTENCIA_VERBAL
+  ADVERTENCIA_ESCRITA
+  SUSPENSAO
+  JUSTA_CAUSA
+  CARTA_ABANDONO
+}
+
+enum StatusAssinatura {
+  PENDENTE
+  ASSINADO
+  RECUSADO
 }
 
 model Empresa {
