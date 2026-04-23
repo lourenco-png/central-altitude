@@ -2,9 +2,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, ShieldAlert, Ban, UserX, CheckCircle2, Clock,
+  AlertTriangle, ShieldAlert, Ban, UserX, CheckCircle, Clock,
   Plus, FileText, ChevronRight, Eye, Pencil, Trash2, Download,
-  TriangleAlert, Flame, ArrowRight,
+  Flame, ArrowRight,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -33,7 +33,7 @@ const TIPO_COR: Record<string, string> = {
 };
 
 const NIVEL_CONFIG: Record<NivelRisco, { label: string; cor: string; icon: React.ReactNode }> = {
-  OK: { label: 'Regular', cor: 'bg-green-100 text-green-800', icon: <CheckCircle2 size={14} /> },
+  OK: { label: 'Regular', cor: 'bg-green-100 text-green-800', icon: <CheckCircle size={14} /> },
   ADVERTENCIA: { label: 'Advertência', cor: 'bg-yellow-100 text-yellow-800', icon: <AlertTriangle size={14} /> },
   SUSPENSAO: { label: 'Suspensão', cor: 'bg-orange-100 text-orange-800', icon: <ShieldAlert size={14} /> },
   RISCO_JUSTA_CAUSA: { label: 'Risco Justa Causa', cor: 'bg-red-100 text-red-700', icon: <Flame size={14} /> },
@@ -299,7 +299,7 @@ export default function DisciplinarPage() {
             <p className="text-center py-10 text-neutral-400">Carregando...</p>
           ) : emAlerta.length === 0 ? (
             <div className="py-14 text-center text-neutral-400">
-              <CheckCircle2 size={40} className="mx-auto mb-3 text-green-400" />
+              <CheckCircle size={40} className="mx-auto mb-3 text-green-400" />
               <p className="font-medium">Nenhum funcionário em alerta</p>
               <p className="text-sm mt-1">Todos os registros estão regulares.</p>
             </div>
@@ -366,7 +366,7 @@ export default function DisciplinarPage() {
                     </button>
                     {a.statusAssinatura === 'PENDENTE' && (
                       <button onClick={() => setShowAssinarModal(a)} className="p-1.5 rounded hover:bg-green-50" title="Marcar como assinado">
-                        <CheckCircle2 size={14} className="text-green-600" />
+                        <CheckCircle size={14} className="text-green-600" />
                       </button>
                     )}
                     <button onClick={() => openEdit(a)} className="p-1.5 rounded hover:bg-neutral-100" title="Editar">
@@ -391,7 +391,7 @@ export default function DisciplinarPage() {
           {/* Sugestão automática */}
           {sugestao && !editing && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-              <TriangleAlert size={16} className="text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-amber-800">Sugestão automática</p>
                 <p className="text-xs text-amber-700 mt-0.5">{sugestao.mensagem}</p>
@@ -509,7 +509,7 @@ export default function DisciplinarPage() {
             {/* Sugestão */}
             {viewFunc.sugestao && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                <TriangleAlert size={15} className="text-amber-600 mt-0.5 shrink-0" />
+                <AlertTriangle size={15} className="text-amber-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs font-semibold text-amber-800">Próxima ação recomendada: {TIPO_LABEL[viewFunc.sugestao.tipo]}</p>
                   <p className="text-xs text-amber-700">{viewFunc.sugestao.mensagem}</p>
@@ -586,7 +586,7 @@ export default function DisciplinarPage() {
                 disabled={assinarMut.isPending}
                 className="btn-primary"
               >
-                <CheckCircle2 size={15} /> Confirmar Assinatura
+                <CheckCircle size={15} /> Confirmar Assinatura
               </button>
             </div>
           </div>
