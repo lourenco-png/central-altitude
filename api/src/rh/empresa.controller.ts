@@ -27,6 +27,14 @@ export class EmpresaController {
   @Delete('socios/:id')
   removeSocio(@Param('id') id: string) { return this.service.removeSocio(id); }
 
+  @Post('socios/:id/documentos')
+  addDocumentoSocio(@Param('id') id: string, @Body() body: any) {
+    return this.service.addDocumentoSocio(id, body);
+  }
+
+  @Delete('socios/documentos/:id')
+  removeDocumentoSocio(@Param('id') id: string) { return this.service.removeDocumentoSocio(id); }
+
   @Post('documentos')
   addDocumento(@Body() body: any) { return this.service.addDocumento(body.empresaId, body); }
 

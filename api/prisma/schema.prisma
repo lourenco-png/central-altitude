@@ -336,15 +336,29 @@ model Empresa {
 }
 
 model Socio {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
-  nome      String
-  cpf       String?
-  cargo     String?
-  createdAt DateTime @default(now())
+  id         String          @id @default(cuid())
+  empresaId  String
+  empresa    Empresa         @relation(fields: [empresaId], references: [id])
+  nome       String
+  cpf        String?
+  cargo      String?
+  documentos DocumentoSocio[]
+  createdAt  DateTime        @default(now())
 
   @@map("socios")
+}
+
+model DocumentoSocio {
+  id        String    @id @default(cuid())
+  socioId   String
+  socio     Socio     @relation(fields: [socioId], references: [id], onDelete: Cascade)
+  nome      String
+  arquivo   String?
+  emissao   DateTime?
+  validade  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("documentos_socios")
 }
 
 model DocumentoEmpresa {

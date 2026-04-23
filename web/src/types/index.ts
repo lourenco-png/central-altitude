@@ -131,12 +131,23 @@ export interface Empresa {
   documentos: DocumentoEmpresa[];
 }
 
+export interface DocumentoSocio {
+  id: string;
+  socioId: string;
+  nome: string;
+  arquivo?: string;
+  emissao?: string;
+  validade?: string;
+  createdAt: string;
+}
+
 export interface Socio {
   id: string;
   empresaId: string;
   nome: string;
   cpf?: string;
   cargo?: string;
+  documentos: DocumentoSocio[];
 }
 
 export interface DocumentoEmpresa {

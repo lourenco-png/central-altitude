@@ -6,7 +6,12 @@ export class EmpresaService {
   constructor(private prisma: PrismaService) {}
 
   findFirst() {
-    return this.prisma.empresa.findFirst({ include: { socios: true, documentos: true } });
+    return this.prisma.empresa.findFirst({
+      include: {
+        socios: { include: { documentos: true } },
+        documentos: true,
+      },
+    });
   }
 
   async upsert(data: any) {
@@ -53,11 +58,31 @@ export class EmpresaService {
   }
 
   addSocio(empresaId: string, data: any) {
-    return this.prisma.socio.create({ data: { ...data, empresaId } });
+    const { documentos, ...socioData } = data;
+    return this.prisma.socio.create({
+      data: { ...socioData, empresaId },
+      include: { documentos: true },
+    });
   }
 
   removeSocio(id: string) {
     return this.prisma.socio.delete({ where: { id } });
+  }
+
+  addDocumentoSocio(socioId: string, data: { nome: string; arquivo?: string; emissao?: string; validade?: string }) {
+    return this.prisma.documentoSocio.create({
+      data: {
+        socioId,
+        nome: data.nome,
+        arquivo: data.arquivo || null,
+        emissao: data.emissao ? new Date(`${data.emissao.split('T')[0]}T12:00:00.000Z`) : null,
+        validade: data.validade ? new Date(`${data.validade.split('T')[0]}T12:00:00.000Z`) : null,
+      },
+    });
+  }
+
+  removeDocumentoSocio(id: string) {
+    return this.prisma.documentoSocio.delete({ where: { id } });
   }
 
   addDocumento(empresaId: string, data: any) {
