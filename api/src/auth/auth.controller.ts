@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, UseGuards, Request, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -10,6 +11,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Throttle({ global: { ttl: 60000, limit: 10 } })
   login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
   }
@@ -37,6 +39,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(200)
+  @Throttle({ global: { ttl: 60000, limit: 5 } })
   forgotPassword(@Body() body: { email: string }) {
     return this.authService.forgotPassword(body.email);
   }

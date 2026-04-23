@@ -6,8 +6,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Admin user
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  // Senhas via env vars — defina SEED_ADMIN_PASSWORD, SEED_MARCOS_PASSWORD e
+  // SEED_LOURENCO_PASSWORD antes de rodar em produção. Os defaults abaixo são
+  // apenas para ambiente de desenvolvimento local.
+  const adminPass    = process.env.SEED_ADMIN_PASSWORD    || 'Admin@Dev2026!';
+  const marcosPass   = process.env.SEED_MARCOS_PASSWORD   || 'Marcos@Dev2026!';
+  const lourencoPass = process.env.SEED_LOURENCO_PASSWORD || 'Lourenco@Dev2026!';
+
+  const hashedPassword = await bcrypt.hash(adminPass, 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@centralaltitude.com' },
     update: {},
@@ -20,8 +26,7 @@ async function main() {
   });
   console.log('Created admin:', admin.email);
 
-  // Usuário Marcos Diego
-  const hashedPasswordMarcos = await bcrypt.hash('a310823@', 10);
+  const hashedPasswordMarcos = await bcrypt.hash(marcosPass, 10);
   const marcos = await prisma.user.upsert({
     where: { email: 'marcos.diego@centralaltitude.com' },
     update: {},
@@ -34,8 +39,7 @@ async function main() {
   });
   console.log('Created user:', marcos.email);
 
-  // Usuário Lourenco
-  const hashedPasswordLourenco = await bcrypt.hash('310823@', 10);
+  const hashedPasswordLourenco = await bcrypt.hash(lourencoPass, 10);
   const lourenco = await prisma.user.upsert({
     where: { email: 'lourenco@centralaltitude.com' },
     update: {},
