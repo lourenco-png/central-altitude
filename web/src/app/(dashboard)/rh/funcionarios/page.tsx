@@ -214,7 +214,7 @@ export default function FuncionariosPage() {
     e.preventDefault();
     if (!faltaForm.data) { toast.error('Informe a data'); return; }
     addFaltaMut.mutate({
-      data: new Date(faltaForm.data).toISOString(),
+      data: faltaForm.data,
       tipo: faltaForm.tipo,
       justificada: faltaForm.justificada,
       motivo: faltaForm.motivo || null,

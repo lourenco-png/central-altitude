@@ -100,7 +100,7 @@ export default function FaltasPage() {
     if (!form.data) { toast.error('Informe a data'); return; }
     createMut.mutate({
       funcionarioId: form.funcionarioId,
-      data: new Date(form.data).toISOString(),
+      data: form.data,
       tipo: form.tipo,
       justificada: form.justificada,
       motivo: form.motivo || null,

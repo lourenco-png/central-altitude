@@ -5,14 +5,19 @@ import { PrismaService } from '../prisma/prisma.service';
 export class FaltasService {
   constructor(private prisma: PrismaService) {}
 
+  private parseDate(dateStr: string): Date {
+    // Use noon UTC to avoid timezone shifts (e.g. UTC-3 turning "2026-04-23" into Apr 22)
+    return new Date(`${dateStr.split('T')[0]}T12:00:00.000Z`);
+  }
+
   findAll(funcionarioId?: string, mes?: string) {
     const where: any = {};
     if (funcionarioId) where.funcionarioId = funcionarioId;
     if (mes) {
       const [ano, m] = mes.split('-').map(Number);
       where.data = {
-        gte: new Date(ano, m - 1, 1),
-        lt: new Date(ano, m, 1),
+        gte: new Date(Date.UTC(ano, m - 1, 1)),
+        lt: new Date(Date.UTC(ano, m, 1)),
       };
     }
     return this.prisma.falta.findMany({
@@ -25,16 +30,18 @@ export class FaltasService {
   }
 
   create(data: any) {
+    const { data: dataFalta, ...rest } = data;
     return this.prisma.falta.create({
-      data,
+      data: { ...rest, data: this.parseDate(dataFalta) },
       include: { funcionario: { select: { id: true, nome: true, cargo: true } } },
     });
   }
 
   update(id: string, data: any) {
+    const { data: dataFalta, ...rest } = data;
     return this.prisma.falta.update({
       where: { id },
-      data,
+      data: { ...rest, ...(dataFalta ? { data: this.parseDate(dataFalta) } : {}) },
       include: { funcionario: { select: { id: true, nome: true, cargo: true } } },
     });
   }

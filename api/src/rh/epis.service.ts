@@ -5,6 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export class EpisService {
   constructor(private prisma: PrismaService) {}
 
+  private parseDate(dateStr: string): Date {
+    return new Date(`${dateStr.split('T')[0]}T12:00:00.000Z`);
+  }
+
   findAll(funcionarioId?: string) {
     return this.prisma.ePI.findMany({
       where: funcionarioId ? { funcionarioId } : {},
@@ -24,14 +28,27 @@ export class EpisService {
   }
 
   create(data: any) {
+    const { validade, dataEntrega, ...rest } = data;
     return this.prisma.ePI.create({
-      data,
+      data: {
+        ...rest,
+        ...(validade ? { validade: this.parseDate(validade) } : {}),
+        ...(dataEntrega ? { dataEntrega: this.parseDate(dataEntrega) } : {}),
+      },
       include: { funcionario: { select: { id: true, nome: true } } },
     });
   }
 
   update(id: string, data: any) {
-    return this.prisma.ePI.update({ where: { id }, data });
+    const { validade, dataEntrega, ...rest } = data;
+    return this.prisma.ePI.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(validade ? { validade: this.parseDate(validade) } : {}),
+        ...(dataEntrega ? { dataEntrega: this.parseDate(dataEntrega) } : {}),
+      },
+    });
   }
 
   remove(id: string) {

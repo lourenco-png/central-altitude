@@ -102,7 +102,7 @@ export default function EpisPage() {
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Novo EPI">
-        <form onSubmit={(e) => { e.preventDefault(); createMut.mutate({ ...form, validade: form.validade ? new Date(form.validade) : null, dataEntrega: form.dataEntrega ? new Date(form.dataEntrega) : null }); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); createMut.mutate({ ...form, validade: form.validade || null, dataEntrega: form.dataEntrega || null }); }} className="space-y-4">
           <div>
             <label className="label">Funcionário *</label>
             <select value={form.funcionarioId} onChange={e => setForm({ ...form, funcionarioId: e.target.value })} className="input" required>

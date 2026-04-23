@@ -5,6 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export class FeriasService {
   constructor(private prisma: PrismaService) {}
 
+  private parseDate(dateStr: string): Date {
+    return new Date(`${dateStr.split('T')[0]}T12:00:00.000Z`);
+  }
+
   findAll(status?: string) {
     return this.prisma.ferias.findMany({
       where: status ? { status: status as any } : {},
@@ -14,14 +18,27 @@ export class FeriasService {
   }
 
   create(data: any) {
+    const { inicio, fim, ...rest } = data;
     return this.prisma.ferias.create({
-      data,
+      data: {
+        ...rest,
+        inicio: this.parseDate(inicio),
+        fim: this.parseDate(fim),
+      },
       include: { funcionario: { select: { id: true, nome: true } } },
     });
   }
 
   update(id: string, data: any) {
-    return this.prisma.ferias.update({ where: { id }, data });
+    const { inicio, fim, ...rest } = data;
+    return this.prisma.ferias.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(inicio ? { inicio: this.parseDate(inicio) } : {}),
+        ...(fim ? { fim: this.parseDate(fim) } : {}),
+      },
+    });
   }
 
   remove(id: string) {

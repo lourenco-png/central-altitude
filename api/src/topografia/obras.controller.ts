@@ -50,7 +50,8 @@ export class ObrasController {
 
   @Post(':id/medicoes')
   createMedicao(@Param('id') id: string, @Body() body: any) {
-    return this.service.createMedicao(id, { ...body, data: new Date(body.data) });
+    const dataStr: string = body.data;
+    return this.service.createMedicao(id, { ...body, data: new Date(`${dataStr.split('T')[0]}T12:00:00.000Z`) });
   }
 
   @Patch('medicoes/:medicaoId')
