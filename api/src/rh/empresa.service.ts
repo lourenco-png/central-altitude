@@ -86,7 +86,14 @@ export class EmpresaService {
   }
 
   addDocumento(empresaId: string, data: any) {
-    return this.prisma.documentoEmpresa.create({ data: { ...data, empresaId } });
+    return this.prisma.documentoEmpresa.create({
+      data: {
+        empresaId,
+        nome: data.nome,
+        arquivo: data.arquivo || null,
+        validade: data.validade ? new Date(`${String(data.validade).split('T')[0]}T12:00:00.000Z`) : null,
+      },
+    });
   }
 
   removeDocumento(id: string) {
