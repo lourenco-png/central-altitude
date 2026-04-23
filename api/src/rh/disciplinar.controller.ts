@@ -45,8 +45,17 @@ export class DisciplinarController {
     });
     if (!acao) { res.status(404).json({ message: 'Ação não encontrada' }); return; }
 
+    // Buscar faltas vinculadas para exibir datas no PDF
+    let faltasVinculadas: any[] = [];
+    if (acao.faltasVinculadas && acao.faltasVinculadas.length > 0) {
+      faltasVinculadas = await this.prisma.falta.findMany({
+        where: { id: { in: acao.faltasVinculadas } },
+        orderBy: { data: 'asc' },
+      });
+    }
+
     const empresa = await this.prisma.empresa.findFirst();
-    const pdfBuffer = await this.pdfService.gerarPdf(acao, acao.funcionario, empresa);
+    const pdfBuffer = await this.pdfService.gerarPdf(acao, acao.funcionario, empresa, faltasVinculadas);
 
     res.set({
       'Content-Type': 'application/pdf',
