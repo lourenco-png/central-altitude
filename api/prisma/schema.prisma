@@ -379,10 +379,12 @@ model DocumentoEmpresa {
 
 model File {
   id           String   @id @default(cuid())
-  data         Bytes
+  data         Bytes?   // null para arquivos armazenados no R2
   mimetype     String
   originalname String
   size         Int
+  storage      String   @default("DB") // "DB" | "R2"
+  key          String?  // chave do objeto no R2 (null para arquivos legados no banco)
   createdAt    DateTime @default(now())
 
   @@map("files")
