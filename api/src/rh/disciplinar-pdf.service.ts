@@ -25,225 +25,150 @@ export class DisciplinarPdfService {
 
     const nomeEmpresa = empresa?.nome || 'ALTITUDE TOPOGRAFIA E ENGENHARIA LTDA';
     const dataDoc = this.fmtData(acao.data);
-    const nomeFuncionario = funcionario.nome;
-    const cargoFuncionario = funcionario.cargo;
+    const nomeFuncionario = funcionario?.nome || '—';
+    const cargoFuncionario = funcionario?.cargo || '—';
+    const setor = funcionario?.setor || '—';
 
-    let titulo = '';
-    let subtitulo = '';
-    let corHeader: string = '#1b5e20';
-    let corpo: any[] = [];
+    // ── Configurações por tipo ──────────────────────────────────────────────
+    type PdfColor = string;
+    const tipoConfig: Record<string, { titulo: string; subtitulo: string; cor: PdfColor }> = {
+      ADVERTENCIA_VERBAL:  { titulo: 'ADVERTÊNCIA DISCIPLINAR',           subtitulo: 'Advertência Verbal / Registrada',                      cor: '#b45309' },
+      ADVERTENCIA_ESCRITA: { titulo: 'ADVERTÊNCIA DISCIPLINAR',           subtitulo: 'Advertência Escrita',                                  cor: '#b45309' },
+      SUSPENSAO:           { titulo: 'SUSPENSÃO DISCIPLINAR',             subtitulo: `Suspensão de ${acao.diasSuspensao || 1} dia(s)`,        cor: '#c2410c' },
+      JUSTA_CAUSA:         { titulo: 'RESCISÃO POR JUSTA CAUSA',          subtitulo: 'Desídia — Art. 482, "e" da CLT',                       cor: '#991b1b' },
+      CARTA_ABANDONO:      { titulo: 'CARTA DE ABANDONO DE EMPREGO',      subtitulo: 'Abandono — Art. 482, "i" da CLT',                      cor: '#6d28d9' },
+    };
+    const cfg = tipoConfig[acao.tipo] || tipoConfig['ADVERTENCIA_VERBAL'];
 
-    // ── Texto por tipo ──────────────────────────────────────────────────────
-    if (acao.tipo === 'ADVERTENCIA_VERBAL' || acao.tipo === 'ADVERTENCIA_ESCRITA') {
-      titulo = 'ADVERTÊNCIA DISCIPLINAR';
-      subtitulo = acao.tipo === 'ADVERTENCIA_VERBAL' ? 'Advertência Verbal/Registrada' : 'Advertência Escrita';
-      corHeader = '#b45309'; // amber
+    // ── Textos por tipo ─────────────────────────────────────────────────────
+    const textoIntro: Record<string, string> = {
+      ADVERTENCIA_VERBAL:  'Por meio deste documento, notificamos formalmente o(a) funcionário(a) identificado(a) abaixo acerca da aplicação de ADVERTÊNCIA VERBAL/REGISTRADA:',
+      ADVERTENCIA_ESCRITA: 'Por meio deste documento, notificamos formalmente o(a) funcionário(a) identificado(a) abaixo acerca da aplicação de ADVERTÊNCIA ESCRITA:',
+      SUSPENSAO:           'Por meio deste documento, comunicamos ao(à) funcionário(a) a aplicação de SUSPENSÃO DISCIPLINAR:',
+      JUSTA_CAUSA:         'Comunicamos ao(à) funcionário(a) a decisão desta empresa de rescindir seu contrato de trabalho por JUSTA CAUSA, nos termos do art. 482, alínea "e" (desídia) da CLT:',
+      CARTA_ABANDONO:      'Por meio deste documento, notificamos que o(a) funcionário(a) abaixo encontra-se em situação de ABANDONO DE EMPREGO, conforme art. 482, alínea "i" da CLT:',
+    };
 
-      corpo = [
-        { text: `Por meio desta, vimos por intermédio deste documento notificar o(a) funcionário(a):`, margin: [0, 0, 0, 8] },
-        {
-          table: {
-            widths: ['35%', '65%'],
-            body: [
-              [{ text: 'Nome:', bold: true }, nomeFuncionario],
-              [{ text: 'Cargo:', bold: true }, cargoFuncionario],
-              [{ text: 'Setor:', bold: true }, funcionario.setor || '—'],
-              [{ text: 'Data da Advertência:', bold: true }, dataDoc],
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          margin: [0, 0, 0, 16],
-        },
-        { text: 'MOTIVO DA ADVERTÊNCIA', style: 'secTitle' },
-        { text: acao.motivo, margin: [0, 6, 0, 16] },
-        {
-          text: `Informamos que a reincidência em infrações desta natureza poderá acarretar medidas disciplinares mais severas, incluindo suspensão e, em caso de persistência, rescisão do contrato de trabalho por justa causa, nos termos do artigo 482 da Consolidação das Leis do Trabalho (CLT).`,
-          italics: true,
-          margin: [0, 0, 0, 16],
-          color: '#374151',
-        },
-        acao.observacao ? { text: `Observações: ${acao.observacao}`, margin: [0, 0, 0, 16], italics: true } : {},
-      ];
-    } else if (acao.tipo === 'SUSPENSAO') {
-      titulo = 'SUSPENSÃO DISCIPLINAR';
-      subtitulo = `Suspensão de ${acao.diasSuspensao || 1} a ${acao.diasSuspensao || 1} dia(s)`;
-      corHeader = '#c2410c'; // orange
+    const textoComplementar: Record<string, string> = {
+      ADVERTENCIA_VERBAL:  'Informamos que a reincidência em infrações desta natureza poderá acarretar medidas disciplinares mais severas, incluindo suspensão e, em caso de persistência, rescisão do contrato de trabalho por justa causa, nos termos do art. 482 da CLT.',
+      ADVERTENCIA_ESCRITA: 'Alertamos que nova infração poderá resultar em suspensão disciplinar e, persistindo a conduta, em rescisão do contrato por justa causa, conforme previsto no art. 482 da Consolidação das Leis do Trabalho.',
+      SUSPENSAO:           `O(a) funcionário(a) ficará afastado(a) por ${acao.diasSuspensao || 1} dia(s) sem remuneração. Alertamos que nova infração poderá resultar em rescisão do contrato por justa causa, conforme art. 482 da CLT.`,
+      JUSTA_CAUSA:         'A presente rescisão foi precedida de advertências e suspensões disciplinares sem melhora de conduta, caracterizando desídia habitual. Na rescisão por justa causa o(a) funcionário(a) não tem direito a aviso prévio, 13º proporcional, férias proporcionais com 1/3 nem multa do FGTS.',
+      CARTA_ABANDONO:      'O(a) funcionário(a) não compareceu ao trabalho por 30 (trinta) ou mais dias consecutivos sem justificativa, configurando abandono de emprego. Este documento poderá ser utilizado como prova em eventual processo trabalhista.',
+    };
 
-      corpo = [
-        { text: `Por meio deste documento, comunicamos ao(à) funcionário(a) a aplicação de SUSPENSÃO DISCIPLINAR:`, margin: [0, 0, 0, 8] },
-        {
-          table: {
-            widths: ['35%', '65%'],
-            body: [
-              [{ text: 'Nome:', bold: true }, nomeFuncionario],
-              [{ text: 'Cargo:', bold: true }, cargoFuncionario],
-              [{ text: 'Setor:', bold: true }, funcionario.setor || '—'],
-              [{ text: 'Data da Suspensão:', bold: true }, dataDoc],
-              [{ text: 'Duração:', bold: true }, `${acao.diasSuspensao || 1} dia(s) sem remuneração`],
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          margin: [0, 0, 0, 16],
-        },
-        { text: 'MOTIVO DA SUSPENSÃO', style: 'secTitle' },
-        { text: acao.motivo, margin: [0, 6, 0, 16] },
-        {
-          text: `O(a) funcionário(a) deverá retornar às suas atividades no prazo estabelecido. Alertamos que nova infração poderá resultar em rescisão do contrato de trabalho por justa causa, conforme art. 482 da CLT.`,
-          italics: true,
-          margin: [0, 0, 0, 16],
-          color: '#374151',
-        },
-        acao.observacao ? { text: `Observações: ${acao.observacao}`, margin: [0, 0, 0, 16], italics: true } : {},
-      ];
-    } else if (acao.tipo === 'JUSTA_CAUSA') {
-      titulo = 'TERMO DE RESCISÃO POR JUSTA CAUSA';
-      subtitulo = 'Rescisão contratual por desídia — Art. 482, "e" da CLT';
-      corHeader = '#991b1b'; // red
-
-      corpo = [
-        { text: `Comunicamos ao(à) funcionário(a) a decisão desta empresa de rescindir seu contrato de trabalho por JUSTA CAUSA, nos termos do art. 482, alínea "e" (desídia no desempenho das funções) da Consolidação das Leis do Trabalho:`, margin: [0, 0, 0, 8] },
-        {
-          table: {
-            widths: ['35%', '65%'],
-            body: [
-              [{ text: 'Nome:', bold: true }, nomeFuncionario],
-              [{ text: 'Cargo:', bold: true }, cargoFuncionario],
-              [{ text: 'Setor:', bold: true }, funcionario.setor || '—'],
-              [{ text: 'Data de Admissão:', bold: true }, funcionario.admissao ? this.fmtData(funcionario.admissao) : '—'],
-              [{ text: 'Data da Rescisão:', bold: true }, dataDoc],
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          margin: [0, 0, 0, 16],
-        },
-        { text: 'FUNDAMENTOS DA RESCISÃO', style: 'secTitle' },
-        { text: acao.motivo, margin: [0, 6, 0, 16] },
-        {
-          text: `A presente rescisão foi precedida de advertências verbais, advertências escritas e suspensões disciplinares, sem que houvesse melhora no comportamento do(a) funcionário(a), caracterizando desídia habitual conforme tipificado na legislação trabalhista vigente.`,
-          margin: [0, 0, 0, 16],
-          color: '#374151',
-        },
-        {
-          text: `Na rescisão por justa causa o(a) funcionário(a) tem direito apenas ao saldo de salário do mês em curso, não fazendo jus a aviso prévio, 13º salário proporcional, férias proporcionais acrescidas de 1/3 e multa do FGTS.`,
-          italics: true,
-          color: '#6b7280',
-          margin: [0, 0, 0, 16],
-        },
-        acao.observacao ? { text: `Observações: ${acao.observacao}`, margin: [0, 0, 0, 16], italics: true } : {},
-      ];
-    } else if (acao.tipo === 'CARTA_ABANDONO') {
-      titulo = 'CARTA DE ABANDONO DE EMPREGO';
-      subtitulo = 'Notificação formal de abandono — Art. 482, "i" da CLT';
-      corHeader = '#6d28d9'; // purple
-
-      corpo = [
-        { text: `Por meio deste documento, notificamos que o(a) funcionário(a) abaixo identificado(a) encontra-se em situação de ABANDONO DE EMPREGO, conforme art. 482, alínea "i" da CLT:`, margin: [0, 0, 0, 8] },
-        {
-          table: {
-            widths: ['35%', '65%'],
-            body: [
-              [{ text: 'Nome:', bold: true }, nomeFuncionario],
-              [{ text: 'Cargo:', bold: true }, cargoFuncionario],
-              [{ text: 'Setor:', bold: true }, funcionario.setor || '—'],
-              [{ text: 'Data da Notificação:', bold: true }, dataDoc],
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          margin: [0, 0, 0, 16],
-        },
-        { text: 'FUNDAMENTAÇÃO', style: 'secTitle' },
-        { text: acao.motivo, margin: [0, 6, 0, 16] },
-        {
-          text: `O(a) funcionário(a) não compareceu ao trabalho por 30 (trinta) ou mais dias consecutivos, sem qualquer justificativa plausível ou comunicação à empresa, configurando abandono de emprego nos termos da legislação vigente.`,
-          margin: [0, 0, 0, 16],
-          color: '#374151',
-        },
-        {
-          text: `Esta carta poderá ser utilizada como prova documental em eventuais processos trabalhistas, juntamente com os registros de ponto e demais evidências de ausência injustificada.`,
-          italics: true,
-          color: '#6b7280',
-          margin: [0, 0, 0, 16],
-        },
-        acao.observacao ? { text: `Observações: ${acao.observacao}`, margin: [0, 0, 0, 16], italics: true } : {},
-      ];
-    }
-
-    // ── Rodapé de assinatura ────────────────────────────────────────────────
-    const assinaturas = [
-      {
-        columns: [
-          {
-            stack: [
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 1, lineColor: '#9ca3af' }] },
-              { text: 'Representante da Empresa', alignment: 'center', fontSize: 9, color: '#6b7280', margin: [0, 4, 0, 2] },
-              { text: nomeEmpresa, alignment: 'center', fontSize: 8, color: '#9ca3af' },
-            ],
-            width: '45%',
-          },
-          { width: '10%', text: '' },
-          {
-            stack: [
-              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 1, lineColor: '#9ca3af' }] },
-              { text: 'Funcionário(a)', alignment: 'center', fontSize: 9, color: '#6b7280', margin: [0, 4, 0, 2] },
-              { text: nomeFuncionario, alignment: 'center', fontSize: 8, color: '#9ca3af' },
-            ],
-            width: '45%',
-          },
-        ],
-        margin: [0, 32, 0, 0],
-      },
-      { text: `Documento gerado em ${this.fmtData(new Date())} · Central Altitude — Sistema de Gestão`, alignment: 'center', fontSize: 7, color: '#9ca3af', margin: [0, 24, 0, 0] },
+    // ── Linhas da tabela de identificação ─────────────────────────────────
+    const linhasTabela: any[][] = [
+      [{ text: 'Nome:', bold: true, fontSize: 9 }, { text: nomeFuncionario, fontSize: 9 }],
+      [{ text: 'Cargo:', bold: true, fontSize: 9 }, { text: cargoFuncionario, fontSize: 9 }],
+      [{ text: 'Setor:', bold: true, fontSize: 9 }, { text: setor, fontSize: 9 }],
     ];
 
-    const docDefinition: any = {
-      pageSize: 'A4',
-      pageMargins: [52, 48, 52, 60],
-      defaultStyle: { font: 'Helvetica', fontSize: 10, color: '#111827', lineHeight: 1.4 },
-      styles: {
-        secTitle: { bold: true, fontSize: 10, color: corHeader, margin: [0, 4, 0, 2] },
+    if (acao.tipo === 'SUSPENSAO') {
+      linhasTabela.push([{ text: 'Dias de Suspensão:', bold: true, fontSize: 9 }, { text: `${acao.diasSuspensao || 1} dia(s) sem remuneração`, fontSize: 9 }]);
+    }
+    if (acao.tipo === 'JUSTA_CAUSA' && funcionario?.admissao) {
+      linhasTabela.push([{ text: 'Data de Admissão:', bold: true, fontSize: 9 }, { text: this.fmtData(funcionario.admissao), fontSize: 9 }]);
+    }
+    linhasTabela.push([{ text: 'Data do Documento:', bold: true, fontSize: 9 }, { text: dataDoc, fontSize: 9 }]);
+
+    // ── Corpo do documento ─────────────────────────────────────────────────
+    const corpoItems: any[] = [
+      { text: textoIntro[acao.tipo] || '', margin: [0, 0, 0, 10], fontSize: 9.5, color: '#374151' },
+      {
+        table: { widths: ['38%', '62%'], body: linhasTabela },
+        layout: 'lightHorizontalLines',
+        margin: [0, 0, 0, 16],
       },
-      content: [
-        // Header colorido
+      { text: 'MOTIVO / FUNDAMENTAÇÃO', bold: true, fontSize: 10, color: cfg.cor, margin: [0, 0, 0, 6] },
+      { text: acao.motivo || '—', fontSize: 9.5, color: '#111827', margin: [0, 0, 0, 14] },
+      { text: textoComplementar[acao.tipo] || '', italics: true, fontSize: 9, color: '#6b7280', margin: [0, 0, 0, 14] },
+    ];
+
+    if (acao.observacao) {
+      corpoItems.push({ text: `Observação: ${acao.observacao}`, fontSize: 9, color: '#374151', italics: true, margin: [0, 0, 0, 14] });
+    }
+
+    // ── Área de assinaturas ────────────────────────────────────────────────
+    const assinaturas: any = {
+      margin: [0, 28, 0, 0],
+      columns: [
         {
-          canvas: [{ type: 'rect', x: -52, y: -48, w: 595, h: 56, color: corHeader }],
-          margin: [0, 0, 0, 0],
-        },
-        {
-          columns: [
-            { text: nomeEmpresa, color: '#ffffff', bold: true, fontSize: 12, margin: [-52, -50, 0, 0] },
-            { image: 'logo', width: 40, alignment: 'right', margin: [0, -52, -52, 0] },
+          width: '45%',
+          stack: [
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0, lineWidth: 0.8, lineColor: '#9ca3af' }] },
+            { text: 'Representante da Empresa', alignment: 'center', fontSize: 8.5, color: '#6b7280', margin: [0, 4, 0, 1] },
+            { text: nomeEmpresa, alignment: 'center', fontSize: 7.5, color: '#9ca3af' },
           ],
         },
+        { width: '10%', text: '' },
         {
-          text: titulo,
-          alignment: 'center',
-          bold: true,
-          fontSize: 15,
-          color: corHeader,
-          margin: [0, 20, 0, 2],
+          width: '45%',
+          stack: [
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0, lineWidth: 0.8, lineColor: '#9ca3af' }] },
+            { text: 'Funcionário(a)', alignment: 'center', fontSize: 8.5, color: '#6b7280', margin: [0, 4, 0, 1] },
+            { text: nomeFuncionario, alignment: 'center', fontSize: 7.5, color: '#9ca3af' },
+          ],
         },
-        {
-          text: subtitulo,
-          alignment: 'center',
-          fontSize: 10,
-          color: '#6b7280',
-          margin: [0, 0, 0, 20],
-        },
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 491, y2: 0, lineWidth: 1, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 16] },
-        ...corpo,
-        ...assinaturas,
       ],
     };
 
-    docDefinition.images = { logo: LOGO };
+    const rodape: any = {
+      text: `Documento gerado em ${this.fmtData(new Date())} · Central Altitude — Sistema de Gestão`,
+      alignment: 'center',
+      fontSize: 7,
+      color: '#d1d5db',
+      margin: [0, 20, 0, 0],
+    };
+
+    // ── Definição do documento ─────────────────────────────────────────────
+    const docDefinition: any = {
+      pageSize: 'A4',
+      pageMargins: [52, 100, 52, 60],
+      defaultStyle: { font: 'Helvetica', fontSize: 10, color: '#111827', lineHeight: 1.4 },
+      styles: {
+        header: { fontSize: 14, bold: true, color: '#ffffff' },
+      },
+      header: {
+        margin: [0, 0, 0, 0],
+        stack: [
+          // Faixa colorida
+          {
+            canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 72, color: cfg.cor }],
+          },
+          // Logo + nome empresa (sobre a faixa)
+          {
+            columns: [
+              { text: nomeEmpresa, color: '#ffffff', bold: true, fontSize: 11, margin: [52, -56, 0, 0], width: '*' },
+              { image: 'logo', width: 36, alignment: 'right', margin: [0, -58, 52, 0] },
+            ],
+          },
+          // Título e subtítulo
+          { text: cfg.titulo, alignment: 'center', bold: true, fontSize: 13, color: '#ffffff', margin: [52, -22, 52, 2] },
+          { text: cfg.subtitulo, alignment: 'center', fontSize: 9, color: 'rgba(255,255,255,0.8)', margin: [52, 0, 52, 0] },
+        ],
+      },
+      content: [
+        // Linha divisória
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 491, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 16] },
+        ...corpoItems,
+        assinaturas,
+        rodape,
+      ],
+      images: { logo: LOGO },
+    };
 
     return new Promise((resolve, reject) => {
-      const doc = printer.createPdfKitDocument(docDefinition);
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-      doc.end();
+      try {
+        const doc = printer.createPdfKitDocument(docDefinition);
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+        doc.end();
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 }

@@ -214,8 +214,26 @@ export default function DisciplinarPage() {
     });
   };
 
-  const gerarPdf = (id: string) => {
-    window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/rh/disciplinar/${id}/pdf`, '_blank');
+  const gerarPdf = async (id: string, nomeFunc?: string) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('ca_token') : null;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${baseUrl}/rh/disciplinar/${id}/pdf`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `disciplinar-${nomeFunc ? nomeFunc.replace(/\s+/g, '-') : id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao gerar PDF');
+    }
   };
 
   // ── Dados agrupados ────────────────────────────────────────────────────────
@@ -361,7 +379,7 @@ export default function DisciplinarPage() {
                 )},
                 { key: 'actions', label: '', className: 'w-32', render: (a) => (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => gerarPdf(a.id)} className="p-1.5 rounded hover:bg-blue-50" title="Gerar PDF">
+                    <button onClick={() => gerarPdf(a.id, a.funcionario?.nome)} className="p-1.5 rounded hover:bg-blue-50" title="Gerar PDF">
                       <Download size={14} className="text-blue-500" />
                     </button>
                     {a.statusAssinatura === 'PENDENTE' && (
@@ -543,7 +561,7 @@ export default function DisciplinarPage() {
                           {(() => { const c = ASSN_CONFIG[a.statusAssinatura] || ASSN_CONFIG.PENDENTE; return (
                             <span className={`px-1.5 py-0.5 rounded text-xs ${c.cor}`}>{c.label}</span>
                           ); })()}
-                          <button onClick={() => gerarPdf(a.id)} className="text-xs text-blue-600 underline flex items-center gap-0.5">
+                          <button onClick={() => gerarPdf(a.id, viewFunc.funcionario.nome)} className="text-xs text-blue-600 underline flex items-center gap-0.5">
                             <Download size={11} /> PDF
                           </button>
                         </div>
