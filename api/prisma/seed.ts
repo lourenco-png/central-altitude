@@ -6,12 +6,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Senhas via env vars — defina SEED_ADMIN_PASSWORD, SEED_MARCOS_PASSWORD e
-  // SEED_LOURENCO_PASSWORD antes de rodar em produção. Os defaults abaixo são
-  // apenas para ambiente de desenvolvimento local.
-  const adminPass    = process.env.SEED_ADMIN_PASSWORD    || 'Admin@Dev2026!';
-  const marcosPass   = process.env.SEED_MARCOS_PASSWORD   || 'Marcos@Dev2026!';
-  const lourencoPass = process.env.SEED_LOURENCO_PASSWORD || 'Lourenco@Dev2026!';
+  const adminPass    = process.env.SEED_ADMIN_PASSWORD;
+  const marcosPass   = process.env.SEED_MARCOS_PASSWORD;
+  const lourencoPass = process.env.SEED_LOURENCO_PASSWORD;
+
+  if (!adminPass || !marcosPass || !lourencoPass) {
+    throw new Error(
+      'Defina SEED_ADMIN_PASSWORD, SEED_MARCOS_PASSWORD e SEED_LOURENCO_PASSWORD antes de rodar o seed.',
+    );
+  }
 
   const hashedPassword = await bcrypt.hash(adminPass, 10);
   const admin = await prisma.user.upsert({

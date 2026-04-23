@@ -2,11 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 
+function assertEnv() {
+  const required = ['DATABASE_URL', 'JWT_SECRET'];
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error(`[FATAL] Variáveis de ambiente obrigatórias não definidas: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 async function bootstrap() {
+  assertEnv();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // ── Segurança: headers HTTP ──────────────────────────────────────────
@@ -42,12 +51,9 @@ async function bootstrap() {
   // ── Validação global ─────────────────────────────────────────────────
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
-    forbidNonWhitelisted: false, // não quebra clientes existentes
+    forbidNonWhitelisted: true,
     transform: true,
   }));
-
-  // ── Arquivos estáticos (uploads) ─────────────────────────────────────
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
 
   // ── Swagger: apenas em desenvolvimento ───────────────────────────────
   if (process.env.NODE_ENV !== 'production') {

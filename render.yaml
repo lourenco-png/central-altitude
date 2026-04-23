@@ -17,12 +17,6 @@ services:
         sync: false
       - key: API_BASE_URL
         value: "https://central-altitude.onrender.com"
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
 
   # Keep-alive: faz ping na API a cada 5 min para evitar cold start no free tier
   - type: cron
