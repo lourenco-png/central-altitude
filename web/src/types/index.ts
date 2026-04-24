@@ -274,6 +274,30 @@ export interface FuncionarioDisciplinar {
 }
 
 // ============================================================
+// LEMBRETES
+// ============================================================
+
+export type TipoLembrete = 'MEDICAO' | 'NOTA_FISCAL';
+export type LembreteStatus = 'PENDENTE' | 'EMITIDO';
+
+export interface Lembrete {
+  id: string;
+  tipo: TipoLembrete;
+  solicitacaoId: string;
+  solicitacao?: {
+    id: string;
+    servico?: string;
+    data: string;
+    obra?: { id: string; nome: string; cliente?: { id: string; nome: string } };
+    engenheiro?: { id: string; nome: string };
+  };
+  periodoReferencia: string;
+  status: LembreteStatus;
+  dataEmissao?: string;
+  createdAt: string;
+}
+
+// ============================================================
 // NOTIFICAÇÕES
 // ============================================================
 

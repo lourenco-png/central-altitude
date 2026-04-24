@@ -115,6 +115,7 @@ model Solicitacao {
   status        SolicitacaoStatus @default(AGENDADO)
   observacoes   String?
   arquivos      String[]          @default([])
+  lembretes     Lembrete[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -123,6 +124,34 @@ model Solicitacao {
   @@index([obraId])
   @@index([engenheiroId])
   @@map("solicitacoes")
+}
+
+enum TipoLembrete {
+  MEDICAO
+  NOTA_FISCAL
+}
+
+enum LembreteStatus {
+  PENDENTE
+  EMITIDO
+}
+
+model Lembrete {
+  id                String         @id @default(cuid())
+  tipo              TipoLembrete
+  solicitacaoId     String
+  solicitacao       Solicitacao    @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  periodoReferencia String
+  status            LembreteStatus @default(PENDENTE)
+  dataEmissao       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@unique([tipo, solicitacaoId, periodoReferencia])
+  @@index([status])
+  @@index([tipo])
+  @@index([periodoReferencia])
+  @@map("lembretes")
 }
 
 enum SolicitacaoStatus {

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Triangle, Users, DollarSign, Settings,
   ChevronDown, ChevronRight, Calendar, FileText, Clipboard,
   UserCheck, Shield, Umbrella, Building2, ShoppingCart,
-  FileSignature, File, Kanban, UserCircle, UserX, ShieldAlert
+  FileSignature, File, Kanban, UserCircle, UserX, ShieldAlert, Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/ui/Logo';
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
       { label: 'RDO', href: '/topografia/rdo', icon: <FileText size={16} /> },
       { label: 'Obras', href: '/topografia/obras', icon: <Building2 size={16} /> },
       { label: 'Engenheiros', href: '/topografia/engenheiros', icon: <UserCheck size={16} /> },
+      { label: 'Lembretes', href: '/topografia/lembretes', icon: <Bell size={16} /> },
     ],
   },
   {
