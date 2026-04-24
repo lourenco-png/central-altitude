@@ -26,7 +26,8 @@ export class LembretesService {
     const hoje = new Date();
     const inicioMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
     const fimMesPassado = new Date(hoje.getFullYear(), hoje.getMonth(), 0, 23, 59, 59);
-    const periodoRef = `${inicioMesPassado.getFullYear()}-${String(inicioMesPassado.getMonth() + 1).padStart(2, '0')}`;
+    // periodoRef = mês atual (mês seguinte à conclusão da solicitação)
+    const periodoRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
     const solicitacoes = await this.prisma.solicitacao.findMany({
       where: {
@@ -65,8 +66,8 @@ export class LembretesService {
 
   async gerarLembretesNotaFiscal() {
     const hoje = new Date();
-    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
-    const periodoRef = `${mesPassado.getFullYear()}-${String(mesPassado.getMonth() + 1).padStart(2, '0')}`;
+    // periodoRef = mês atual (mês seguinte à conclusão da solicitação)
+    const periodoRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
     const medicoesEmitidas = await this.prisma.lembrete.findMany({
       where: {
@@ -173,8 +174,9 @@ export class LembretesService {
 
   private async gerarLembretesMedicaoPeriodo(periodoRef: string) {
     const [ano, mes] = periodoRef.split('-').map(Number);
-    const inicioMes = new Date(ano, mes - 1, 1);
-    const fimMes = new Date(ano, mes, 0, 23, 59, 59);
+    // Busca solicitações concluídas no mês ANTERIOR ao período de referência
+    const inicioMes = new Date(ano, mes - 2, 1);
+    const fimMes = new Date(ano, mes - 1, 0, 23, 59, 59);
 
     const solicitacoes = await this.prisma.solicitacao.findMany({
       where: {

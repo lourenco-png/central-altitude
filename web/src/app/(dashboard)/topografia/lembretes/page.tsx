@@ -67,7 +67,7 @@ export default function LembretesPage() {
 
   const handleGerar = (tipo: TipoLembrete) => {
     setGerandoTipo(tipo);
-    const periodo = filtroPeriodo || periodoAnterior();
+    const periodo = filtroPeriodo || periodoAtual();
     gerarMut.mutate({ tipo, periodo });
   };
 
@@ -186,7 +186,7 @@ export default function LembretesPage() {
           <div className="flex flex-col items-center justify-center py-16 text-neutral-300">
             <Bell size={48} className="mb-3" />
             <p className="text-sm text-neutral-400">Nenhum lembrete encontrado</p>
-            <p className="text-xs text-neutral-300 mt-1">Use os botões acima para gerar lembretes do período anterior</p>
+            <p className="text-xs text-neutral-300 mt-1">Use os botões acima para gerar lembretes do mês atual</p>
           </div>
         ) : (
           <div className="divide-y divide-neutral-50">
